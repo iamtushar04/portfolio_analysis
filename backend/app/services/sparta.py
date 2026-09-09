@@ -1,8 +1,9 @@
 import httpx
 import asyncio
+from ..config import settings
 
 async def fetch_sparta_data(no_kind_code: str, max_retries: int = 3) -> dict:
-    url = f"https://api.sparta.wissenresearch.com/patent_standard_mapping/{no_kind_code}"
+    url = f"{settings.SPARTA_API_BASE_URL}/{no_kind_code}"
     
     for attempt in range(1, max_retries + 1):
         try:

@@ -296,7 +296,7 @@ def generate_session_excel(session_data: dict) -> bytes:
     ws_comp.views.sheetView[0].showGridLines = True
     ws_comp.freeze_panes = "A2"
 
-    comp_headers = ["Subject Patent Number", "Subject Patent Title", "Competitor Name"]
+    comp_headers = ["Subject Patent Number", "Subject Patent Title", "Competitor Source / Category", "Competitor Name"]
     for col_num, h_text in enumerate(comp_headers, 1):
         cell = ws_comp.cell(row=1, column=col_num, value=h_text)
         cell.font = header_font
@@ -309,22 +309,32 @@ def generate_session_excel(session_data: dict) -> bytes:
     for p in patents:
         pat_num = p.get("patent_number", "")
         pat_title = p.get("title", "")
-        comps = p.get("competitors") or []
         
-        for comp in comps:
-            comp_name = comp if isinstance(comp, str) else comp.get("name", str(comp))
-            c_subj = ws_comp.cell(row=curr_row, column=1, value=pat_num)
-            c_ttl = ws_comp.cell(row=curr_row, column=2, value=pat_title)
-            c_cname = ws_comp.cell(row=curr_row, column=3, value=comp_name)
+        fwd_comps = p.get("forward_competitors") or []
+        bwd_comps = p.get("backward_competitors") or []
+        
+        comp_entries = []
+        for c in fwd_comps:
+            comp_entries.append(("Forward Citation Assignee", c))
+        for c in bwd_comps:
+            comp_entries.append(("Backward Citation Assignee", c))
+
+        for source, comp_name in comp_entries:
+            c_pnum = ws_comp.cell(row=curr_row, column=1, value=pat_num)
+            c_pttl = ws_comp.cell(row=curr_row, column=2, value=pat_title)
+            c_src = ws_comp.cell(row=curr_row, column=3, value=source)
+            c_cname = ws_comp.cell(row=curr_row, column=4, value=comp_name)
             
             is_even = curr_row % 2 == 0
-            for c in [c_subj, c_ttl, c_cname]:
+            for c in [c_pnum, c_pttl, c_src, c_cname]:
                 c.font = body_font
                 c.border = thin_border
                 c.alignment = align_left
                 if is_even:
                     c.fill = alt_row_fill
-            c_subj.alignment = align_center_top
+            c_pnum.alignment = align_center_top
+            c_src.alignment = align_center_top
+            
             curr_row += 1
 
     # ---------------------------------------------------------

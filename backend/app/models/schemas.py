@@ -41,7 +41,9 @@ class PatentData(Base):
     standard_links = Column(String, nullable=True)
     
     # Competitor API Data
-    competitors = Column(JSON, nullable=True) # list of strings
+    competitors = Column(JSON, nullable=True) # list of strings (legacy/main)
+    forward_competitors = Column(JSON, nullable=True) # list of strings from forward citations
+    backward_competitors = Column(JSON, nullable=True) # list of strings from backward citations
     
     status = Column(String, default="pending") # pending, success, failed
     error_message = Column(String, nullable=True)

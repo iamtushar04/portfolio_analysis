@@ -1,8 +1,9 @@
 import httpx
 import asyncio
+from ..config import settings
 
 async def fetch_competitor_data(patent_number: str, assignees: any, max_retries: int = 3) -> dict:
-    url = "http://135.181.19.83:8509/utilities/competitor-search"
+    url = settings.COMPETITOR_API_URL
     headers = {
         "accept": "application/json",
         "Content-Type": "application/json"
@@ -38,7 +39,7 @@ async def fetch_competitor_data(patent_number: str, assignees: any, max_retries:
                         "total_competitors": data.get("total_competitors", len(competitors))
                     }
                 
-                # If competitors list is empty but valid assignees were sent, retry once or twice in case service was warming up
+                # If competitors list is empty but valid assignees were sent, retry
                 if attempt < max_retries:
                     print(f"Competitor API returned empty for {patent_number} (Attempt {attempt}/{max_retries}). Retrying in {attempt}s...")
                     await asyncio.sleep(attempt)

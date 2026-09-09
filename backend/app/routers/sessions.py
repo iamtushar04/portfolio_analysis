@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session as DBSession
 from typing import List
@@ -8,8 +8,9 @@ import io
 
 from ..database import get_db
 from ..models import schemas
-from ..services.worker import process_patents_background
 from ..services.excel_export import generate_session_excel
+from ..tasks import process_patent_task
+from ..redis_client import redis_client
 
 router = APIRouter()
 
@@ -53,6 +54,8 @@ def get_session(session_id: str, db: DBSession = Depends(get_db)):
                 "forward_citations": p.forward_citations,
                 "backward_citations": p.backward_citations,
                 "competitors": p.competitors,
+                "forward_competitors": getattr(p, 'forward_competitors', []) or [],
+                "backward_competitors": getattr(p, 'backward_competitors', []) or [],
                 "standard": p.standard,
                 "standard_links": p.standard_links,
                 "error_message": p.error_message
@@ -74,45 +77,61 @@ def export_session_excel(session_id: str, db: DBSession = Depends(get_db)):
 
 @router.post("/{session_id}/upload")
 async def upload_excel(
-    session_id: str, 
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...), 
+    session_id: str,
+    file: UploadFile = File(...),
     db: DBSession = Depends(get_db)
 ):
     db_session = db.query(schemas.Session).filter(schemas.Session.id == session_id).first()
     if not db_session:
         raise HTTPException(status_code=404, detail="Session not found")
-        
+
     if not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Only Excel files are supported")
-        
+
     contents = await file.read()
     try:
         df = pd.read_excel(io.BytesIO(contents))
-        # Find the first column that looks like patent numbers, or just assume the first column
         patent_col = df.columns[0]
-        patent_numbers = df[patent_col].dropna().astype(str).tolist()
+        raw_numbers = df[patent_col].dropna().astype(str).tolist()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading Excel file: {str(e)}")
-        
+
+    # Sanitize: strip whitespace, remove blanks, deduplicate while preserving order
+    seen = set()
+    patent_numbers = []
+    for num in raw_numbers:
+        cleaned = num.strip()
+        if cleaned and cleaned.lower() not in ('nan', 'none', '') and cleaned not in seen:
+            seen.add(cleaned)
+            patent_numbers.append(cleaned)
+
     if not patent_numbers:
-        raise HTTPException(status_code=400, detail="No patent numbers found in the file")
-        
+        raise HTTPException(status_code=400, detail="No valid patent numbers found in the file")
+
     db_session.total_patents = len(patent_numbers)
     db_session.status = "processing"
-    
+
     # Pre-populate pending patent records
     for num in patent_numbers:
         patent_record = schemas.PatentData(
             session_id=session_id,
-            patent_number=num.strip(),
+            patent_number=num,
             status="pending"
         )
         db.add(patent_record)
-        
+
     db.commit()
-    
-    # Start background processing
-    background_tasks.add_task(process_patents_background, session_id, patent_numbers)
-    
-    return {"message": "Upload successful. Processing started in background.", "total_patents": len(patent_numbers)}
+
+    # Enqueue patents into session-specific Redis list for Round-Robin execution
+    queue_key = f"session_patents:{session_id}"
+    redis_client.rpush(queue_key, *patent_numbers)
+    redis_client.sadd("active_sessions_set", session_id)
+
+    # Trigger the round-robin dispatcher to schedule tasks across all active sessions
+    from ..tasks import dispatch_round_robin_tasks
+    dispatch_round_robin_tasks.delay()
+
+    return {
+        "message": f"Upload successful. {len(patent_numbers)} patents queued for background processing.",
+        "total_patents": len(patent_numbers)
+    }

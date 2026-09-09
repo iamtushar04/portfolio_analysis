@@ -1,8 +1,9 @@
 import httpx
 import asyncio
+from ..config import settings
 
 async def fetch_wissen_data(patent_number: str, max_retries: int = 3) -> dict:
-    url = f"https://api.patent.wissenresearch.com/patent/{patent_number}"
+    url = f"{settings.WISSEN_API_BASE_URL}/{patent_number}"
     
     for attempt in range(1, max_retries + 1):
         try:
