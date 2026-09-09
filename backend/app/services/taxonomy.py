@@ -1,6 +1,7 @@
 import httpx
 import json
 import os
+import asyncio
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
@@ -8,10 +9,10 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-async def classify_patent(cpc_list: list, abstract: str, claims: str) -> dict:
+async def classify_patent(cpc_list: list, abstract: str, claims: str, max_retries: int = 3) -> dict:
     if not OPENAI_API_KEY:
         print("Warning: OPENAI_API_KEY is not set.")
-        return {"domain": "Unknown", "topic": "Unknown", "subtopic": "Unknown"}
+        return []
         
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
     
@@ -35,35 +36,50 @@ async def classify_patent(cpc_list: list, abstract: str, claims: str) -> dict:
     ]
     """
     
-    try:
-        response = await client.chat.completions.create(
-            model="gpt-3.5-turbo", # or gpt-4o depending on preference/cost
-            messages=[
-                {"role": "system", "content": "You are an expert patent taxonomy classifier."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2,
-            max_tokens=600
-        )
-        
-        content = response.choices[0].message.content.strip()
-        
-        # Parse the JSON block out of the response
-        json_start = content.find("JSON:\n")
-        if json_start != -1:
-            json_str = content[json_start + 6:].strip()
-            if json_str.startswith("```json"):
-                json_str = json_str[7:-3].strip()
-            elif json_str.startswith("```"):
-                json_str = json_str[3:-3].strip()
-            return json.loads(json_str)
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = await client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an expert patent taxonomy classifier."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,
+                max_tokens=600
+            )
             
-        # Fallback if no "JSON:" marker but has array brackets
-        if "[" in content and "]" in content:
-            json_str = content[content.find("["):content.rfind("]")+1]
-            return json.loads(json_str)
+            content = response.choices[0].message.content.strip()
             
-        return []
-    except Exception as e:
-        print(f"Error classifying patent: {e}")
-        return []
+            # Parse JSON block
+            json_start = content.find("JSON:\n")
+            if json_start != -1:
+                json_str = content[json_start + 6:].strip()
+                if json_str.startswith("```json"):
+                    json_str = json_str[7:-3].strip()
+                elif json_str.startswith("```"):
+                    json_str = json_str[3:-3].strip()
+                parsed = json.loads(json_str)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    return parsed
+                
+            if "[" in content and "]" in content:
+                json_str = content[content.find("["):content.rfind("]")+1]
+                parsed = json.loads(json_str)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    return parsed
+                    
+            if attempt < max_retries:
+                print(f"Taxonomy classification output unparseable for patent (Attempt {attempt}/{max_retries}). Retrying...")
+                await asyncio.sleep(attempt)
+                continue
+                
+            return []
+            
+        except Exception as e:
+            print(f"Error classifying patent (Attempt {attempt}/{max_retries}): {e}")
+            if attempt < max_retries:
+                await asyncio.sleep(attempt * 1.5)
+            else:
+                return []
+                
+    return []
