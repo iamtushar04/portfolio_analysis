@@ -77,6 +77,10 @@ def process_patent_task(self, session_id: str, patent_number: str):
         try:
             loop.run_until_complete(_process_patent_async(session_id, patent_number))
         finally:
+            try:
+                loop.run_until_complete(loop.shutdown_asyncgens())
+            except Exception:
+                pass
             loop.close()
 
     except SoftTimeLimitExceeded:
@@ -95,6 +99,12 @@ async def _process_patent_async(session_id: str, patent_number: str):
     """Core async patent processing logic — identical to worker.py but with own DB session."""
     db = SessionLocal()
     try:
+        # 0. Check if session was deleted (abort if true)
+        session_record = db.query(schemas.Session).filter(schemas.Session.id == session_id).first()
+        if not session_record:
+            logger.info(f"Session {session_id} deleted. Aborting task for patent {patent_number}.")
+            return
+
         # Skip if already successfully processed (idempotent — safe to re-run)
         patent_record = db.query(schemas.PatentData).filter(
             schemas.PatentData.session_id == session_id,
@@ -103,6 +113,7 @@ async def _process_patent_async(session_id: str, patent_number: str):
 
         if patent_record and patent_record.status == "success":
             logger.info(f"Patent {patent_number} already processed — skipping.")
+            _check_session_completion(db, session_id)
             return
 
         # 1. Fetch Wissen data (3 retries built-in)
@@ -154,9 +165,19 @@ async def _process_patent_async(session_id: str, patent_number: str):
 
         # Run Competitor API for Forward Assignees and Backward Assignees in parallel (2 API calls)
         fwd_comp_res, bwd_comp_res = await asyncio.gather(
-            fetch_competitor_data(patent_number, list(fwd_assignees_set)),
-            fetch_competitor_data(patent_number, list(bwd_assignees_set))
+            fetch_competitor_data(patent_number, list(fwd_assignees_set), label="Forward"),
+            fetch_competitor_data(patent_number, list(bwd_assignees_set), label="Backward")
         )
+
+        fwd_competitors = fwd_comp_res.get("competitors", [])
+        bwd_competitors_raw = bwd_comp_res.get("competitors", [])
+
+        # Keep competitors in FWD, remove them from BWD
+        fwd_competitors_lower = {str(c).strip().lower() for c in fwd_competitors}
+        bwd_competitors = [
+            c for c in bwd_competitors_raw
+            if str(c).strip().lower() not in fwd_competitors_lower
+        ]
 
         # 6. Save to DB
         if patent_record:
@@ -170,33 +191,42 @@ async def _process_patent_async(session_id: str, patent_number: str):
             patent_record.standard = sparta_data.get("standard")
             patent_record.standard_links = sparta_data.get("standard_links")
             patent_record.competitors = []
-            patent_record.forward_competitors = fwd_comp_res.get("competitors", [])
-            patent_record.backward_competitors = bwd_comp_res.get("competitors", [])
+            patent_record.forward_competitors = fwd_competitors
+            patent_record.backward_competitors = bwd_competitors
             patent_record.status = "success"
             patent_record.error_message = None
             db.commit()
             logger.info(f"Patent {patent_number} processed successfully.")
+            
+            # Check if this was the last patent to process
+            _check_session_completion(db, session_id)
 
     except Exception as e:
         db.rollback()
         raise  # Let Celery task handle retry/failure
     finally:
-        # Always increment processed counter and check if session is complete
-        _increment_and_check_session(db, session_id)
         db.close()
 
 
-def _increment_and_check_session(db, session_id: str):
-    """Atomically increment processed counter and mark session complete if done."""
+def _check_session_completion(db, session_id: str):
+    """Check if all patents for a session are processed (success or failed) and mark complete."""
     try:
         db_session = db.query(schemas.Session).filter(schemas.Session.id == session_id).first()
-        if db_session:
-            db_session.processed_patents += 1
-            if db_session.processed_patents >= db_session.total_patents:
-                db_session.status = "completed"
+        if not db_session or db_session.status == "completed":
+            return
+            
+        # Dynamically count processed patents
+        processed_count = db.query(schemas.PatentData).filter(
+            schemas.PatentData.session_id == session_id,
+            schemas.PatentData.status.in_(["success", "failed"])
+        ).count()
+        
+        if processed_count >= db_session.total_patents and db_session.total_patents > 0:
+            db_session.status = "completed"
             db.commit()
+            
     except Exception as e:
-        logger.error(f"Error updating session counter for {session_id}: {e}")
+        logger.error(f"Error checking session completion for {session_id}: {e}")
         db.rollback()
 
 
@@ -212,7 +242,7 @@ def _mark_patent_failed(session_id: str, patent_number: str, error_msg: str):
             patent_record.status = "failed"
             patent_record.error_message = error_msg
             db.commit()
-        _increment_and_check_session(db, session_id)
+        _check_session_completion(db, session_id)
     except Exception as e:
         logger.error(f"Error marking patent {patent_number} failed: {e}")
     finally:

@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: portfolio_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: wissen67
+      POSTGRES_DB: portfolio_analysis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: portfolio_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: portfolio_backend
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./backend/.env
+    environment:
+      # These explicitly override the 'localhost' variables defined in .env
+      DATABASE_URL: postgresql://postgres:wissen67@postgres:5432/portfolio_analysis
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  celery_worker:
+    build: ./backend
+    container_name: portfolio_celery_worker
+    command: celery -A app.celery_app worker --concurrency=4 --pool=threads --loglevel=info
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:wissen67@postgres:5432/portfolio_analysis
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - backend
+      - redis
+      - postgres
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: portfolio_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

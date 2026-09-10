@@ -1,0 +1,18 @@
+# Node / Frontend
+**/node_modules
+frontend/.next
+frontend/out
+
+# Python / Backend
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+backend/*.db
+backend/*.sqlite3
+
+# Git & IDE
+.git
+.gitignore
+.vscode
+.idea

@@ -2,7 +2,9 @@ import httpx
 import asyncio
 from ..config import settings
 
-async def fetch_competitor_data(patent_number: str, assignees: any, max_retries: int = 3) -> dict:
+import random
+
+async def fetch_competitor_data(patent_number: str, assignees: any, label: str = "Unknown", max_retries: int = 3) -> dict:
     url = settings.COMPETITOR_API_URL
     headers = {
         "accept": "application/json",
@@ -32,29 +34,25 @@ async def fetch_competitor_data(patent_number: str, assignees: any, max_retries:
                 data = response.json()
                 competitors = data.get("competitors", [])
                 
-                # If we received competitors OR if assignees was NAN (no competitors expected), return immediately
-                if competitors or assignees_list == ["NAN"]:
+                # If we received competitors, return them. 
+                # If empty, it might be due to API concurrency overload. Retry up to max_retries before giving up.
+                if not competitors and attempt < max_retries:
+                    print(f"[{label}] Competitor API returned empty for {patent_number} (Attempt {attempt}/{max_retries}). Retrying...")
+                    # Fall through to the except-like sleep logic below
+                else:
                     return {
                         "competitors": competitors,
                         "total_competitors": data.get("total_competitors", len(competitors))
                     }
                 
-                # If competitors list is empty but valid assignees were sent, retry
-                if attempt < max_retries:
-                    print(f"Competitor API returned empty for {patent_number} (Attempt {attempt}/{max_retries}). Retrying in {attempt}s...")
-                    await asyncio.sleep(attempt)
-                    continue
-                    
-                return {
-                    "competitors": [],
-                    "total_competitors": 0
-                }
-                
         except Exception as e:
-            print(f"Error fetching Competitor data for {patent_number} (Attempt {attempt}/{max_retries}): {e}")
-            if attempt < max_retries:
-                await asyncio.sleep(attempt * 1.5)
-            else:
-                return {"competitors": [], "total_competitors": 0}
-                
+            print(f"[{label}] Error fetching Competitor data for {patent_number} (Attempt {attempt}/{max_retries}): {type(e).__name__}: {e}")
+            
+        if attempt < max_retries:
+            # Jittered exponential backoff to avoid thundering herd on upstream API
+            sleep_time = (attempt * 1.5) + random.uniform(0.5, 2.0)
+            await asyncio.sleep(sleep_time)
+        else:
+            return {"competitors": [], "total_competitors": 0}
+            
     return {"competitors": [], "total_competitors": 0}

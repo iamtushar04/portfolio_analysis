@@ -13,6 +13,7 @@ class Session(Base):
     status = Column(String, default="pending") # pending, processing, completed, error
     total_patents = Column(Integer, default=0)
     processed_patents = Column(Integer, default=0)
+    owner_id = Column(String, index=True, nullable=True) # Deterministic UUID from external auth
     
     patents = relationship("PatentData", back_populates="session", cascade="all, delete")
 

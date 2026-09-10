@@ -1,5 +1,7 @@
 import json
 import asyncio
+import backoff
+import openai
 from langfuse.openai import AsyncOpenAI
 from langfuse import Langfuse
 from ..config import settings
@@ -11,6 +13,13 @@ langfuse = Langfuse(
     host=settings.LANGFUSE_HOST
 )
 
+@backoff.on_exception(
+    backoff.expo,
+    Exception,
+    max_tries=5,
+    max_time=120,
+    jitter=backoff.full_jitter
+)
 async def classify_patent(cpc_list: list, abstract: str, claims: str, patent_number: str = "", session_id: str = "", max_retries: int = 3) -> dict:
     if not settings.OPENAI_API_KEY:
         print("Warning: OPENAI_API_KEY is not set.")
@@ -39,59 +48,51 @@ async def classify_patent(cpc_list: list, abstract: str, claims: str, patent_num
     ]
     """
 
-    for attempt in range(1, max_retries + 1):
-        try:
-            # Langfuse auto-instruments this call: logs prompt, completion, token usage, latency, and exact cost
-            response = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are an expert patent taxonomy classifier."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=600,
-                name=f"classify-{patent_number}" if patent_number else "patent-taxonomy-classification",
-                metadata={
-                    "patent_number": patent_number,
-                    "session_id": session_id,
-                    "cpc_count": len(cpc_list),
-                    "abstract_len": len(abstract),
-                    "claims_len": len(claims)
-                }
-            )
+    try:
+        # Langfuse auto-instruments this call: logs prompt, completion, token usage, latency, and exact cost
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert patent taxonomy classifier."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,
+            max_tokens=600,
+            name=f"classify-{patent_number}" if patent_number else "patent-taxonomy-classification",
+            metadata={
+                "patent_number": patent_number,
+                "session_id": session_id,
+                "cpc_count": len(cpc_list),
+                "abstract_len": len(abstract),
+                "claims_len": len(claims)
+            }
+        )
 
-            content = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content.strip()
 
-            # Parse JSON block
-            json_start = content.find("JSON:\n")
-            if json_start != -1:
-                json_str = content[json_start + 6:].strip()
-                if json_str.startswith("```json"):
-                    json_str = json_str[7:-3].strip()
-                elif json_str.startswith("```"):
-                    json_str = json_str[3:-3].strip()
-                parsed = json.loads(json_str)
-                if isinstance(parsed, list) and len(parsed) > 0:
-                    return parsed
+        # Parse JSON block
+        json_start = content.find("JSON:\n")
+        if json_start != -1:
+            json_str = content[json_start + 6:].strip()
+            if json_str.startswith("```json"):
+                json_str = json_str[7:-3].strip()
+            elif json_str.startswith("```"):
+                json_str = json_str[3:-3].strip()
+            parsed = json.loads(json_str)
+            if isinstance(parsed, list) and len(parsed) > 0:
+                return parsed
 
-            if "[" in content and "]" in content:
-                json_str = content[content.find("["):content.rfind("]")+1]
-                parsed = json.loads(json_str)
-                if isinstance(parsed, list) and len(parsed) > 0:
-                    return parsed
+        if "[" in content and "]" in content:
+            json_str = content[content.find("["):content.rfind("]")+1]
+            parsed = json.loads(json_str)
+            if isinstance(parsed, list) and len(parsed) > 0:
+                return parsed
 
-            if attempt < max_retries:
-                print(f"Taxonomy classification output unparseable for patent (Attempt {attempt}/{max_retries}). Retrying...")
-                await asyncio.sleep(attempt)
-                continue
+        # If it reaches here, parsing failed. We raise an exception to trigger the backoff retry
+        print(f"Taxonomy classification output unparseable for patent {patent_number}. Retrying...")
+        raise ValueError("Failed to parse JSON taxonomy from LLM response")
 
-            return []
-
-        except Exception as e:
-            print(f"Error classifying patent (Attempt {attempt}/{max_retries}): {e}")
-            if attempt < max_retries:
-                await asyncio.sleep(attempt * 1.5)
-            else:
-                return []
-
-    return []
+    except Exception as e:
+        print(f"Error classifying patent {patent_number}: {e}")
+        # Raising the exception ensures the backoff decorator catches it and retries!
+        raise e
