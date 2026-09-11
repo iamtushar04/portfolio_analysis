@@ -13,6 +13,17 @@ langfuse = Langfuse(
     host=settings.LANGFUSE_HOST
 )
 
+def _log_dataset_item(patent_number, abstract, claims, parsed):
+    try:
+        langfuse.create_dataset_item(
+            dataset_name="Portfolio-Analysis",
+            input={"abstract": abstract, "claims": claims},
+            expected_output={"taxonomies": parsed},
+            metadata={"patent_number": patent_number}
+        )
+    except Exception as e:
+        print(f"Background Langfuse dataset logging failed: {e}")
+
 @backoff.on_exception(
     backoff.expo,
     Exception,
@@ -80,12 +91,16 @@ async def classify_patent(cpc_list: list, abstract: str, claims: str, patent_num
                 json_str = json_str[3:-3].strip()
             parsed = json.loads(json_str)
             if isinstance(parsed, list) and len(parsed) > 0:
+                # Fire and forget: log to Langfuse dataset in background thread (0ms blocking)
+                asyncio.create_task(asyncio.to_thread(_log_dataset_item, patent_number, abstract, claims, parsed))
                 return parsed
 
         if "[" in content and "]" in content:
             json_str = content[content.find("["):content.rfind("]")+1]
             parsed = json.loads(json_str)
             if isinstance(parsed, list) and len(parsed) > 0:
+                # Fire and forget: log to Langfuse dataset in background thread (0ms blocking)
+                asyncio.create_task(asyncio.to_thread(_log_dataset_item, patent_number, abstract, claims, parsed))
                 return parsed
 
         # If it reaches here, parsing failed. We raise an exception to trigger the backoff retry
