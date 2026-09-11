@@ -1,12 +1,27 @@
 import httpx
 import asyncio
 from ..config import settings
-
 import random
 
-# Semaphore: limits to 3 concurrent competitor API calls at a time.
-# This prevents hammering the upstream ML API when processing many patents in parallel.
-_competitor_semaphore = asyncio.Semaphore(3)
+# Industry-standard fix for Celery + asyncio:
+# Each Celery task creates its own event loop (via asyncio.new_event_loop()).
+# A module-level asyncio.Semaphore is bound to the first event loop and
+# crashes with "bound to a different event loop" when reused across tasks.
+#
+# Solution: Create one Semaphore per event loop, lazily, keyed by the loop's id.
+# WeakValueDictionary ensures dead loops are garbage collected automatically.
+import weakref
+_semaphore_registry: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
+
+def _get_semaphore() -> asyncio.Semaphore:
+    """Returns a Semaphore that is always bound to the currently running event loop."""
+    loop = asyncio.get_event_loop()
+    loop_id = id(loop)
+    sem = _semaphore_registry.get(loop_id)
+    if sem is None:
+        sem = asyncio.Semaphore(3)  # Max 3 concurrent competitor API calls per event loop
+        _semaphore_registry[loop_id] = sem
+    return sem
 
 async def fetch_competitor_data(patent_number: str, assignees: any, label: str = "Unknown", max_retries: int = 5) -> dict:
     url = settings.COMPETITOR_API_URL
@@ -40,7 +55,7 @@ async def fetch_competitor_data(patent_number: str, assignees: any, label: str =
         pool=10.0
     )
 
-    async with _competitor_semaphore:
+    async with _get_semaphore():
         for attempt in range(1, max_retries + 1):
             try:
                 print(f"[{label}] Competitor API call for {patent_number} (Attempt {attempt}/{max_retries})...")
