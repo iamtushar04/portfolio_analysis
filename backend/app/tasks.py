@@ -71,17 +71,15 @@ def process_patent_task(self, session_id: str, patent_number: str):
     Each task gets its own DB connection (no shared state / connection exhaustion).
     """
     try:
-        # Run async logic inside this sync Celery task
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(_process_patent_async(session_id, patent_number))
-        finally:
-            try:
-                loop.run_until_complete(loop.shutdown_asyncgens())
-            except Exception:
-                pass
-            loop.close()
+        # asyncio.run() is the correct, Python 3.12-approved way to run async code
+        # from a synchronous Celery task. It:
+        #   1. Creates a fresh event loop for this task
+        #   2. Runs the coroutine to completion
+        #   3. Cancels ALL pending background tasks (e.g. httpx connection cleanup)
+        #   4. Shuts down async generators
+        #   5. Closes the loop cleanly
+        # This eliminates both "Event loop is closed" and "bound to different event loop" errors.
+        asyncio.run(_process_patent_async(session_id, patent_number))
 
     except SoftTimeLimitExceeded:
         # Task exceeded 10 minute soft limit — mark failed cleanly

@@ -1,27 +1,14 @@
 import httpx
 import asyncio
-from ..config import settings
 import random
+import threading
+from ..config import settings
 
-# Industry-standard fix for Celery + asyncio:
-# Each Celery task creates its own event loop (via asyncio.new_event_loop()).
-# A module-level asyncio.Semaphore is bound to the first event loop and
-# crashes with "bound to a different event loop" when reused across tasks.
-#
-# Solution: Create one Semaphore per event loop, lazily, keyed by the loop's id.
-# WeakValueDictionary ensures dead loops are garbage collected automatically.
-import weakref
-_semaphore_registry: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
-
-def _get_semaphore() -> asyncio.Semaphore:
-    """Returns a Semaphore that is always bound to the currently running event loop."""
-    loop = asyncio.get_event_loop()
-    loop_id = id(loop)
-    sem = _semaphore_registry.get(loop_id)
-    if sem is None:
-        sem = asyncio.Semaphore(3)  # Max 3 concurrent competitor API calls per event loop
-        _semaphore_registry[loop_id] = sem
-    return sem
+# threading.Semaphore is the correct primitive here.
+# Celery uses --pool=threads, so each patent task runs in its own OS thread.
+# threading.Semaphore has ZERO event loop dependency — it works correctly
+# across all threads for the entire lifetime of the worker process.
+_competitor_semaphore = threading.Semaphore(3)  # Max 3 concurrent competitor API calls
 
 async def fetch_competitor_data(patent_number: str, assignees: any, label: str = "Unknown", max_retries: int = 5) -> dict:
     url = settings.COMPETITOR_API_URL
@@ -45,9 +32,8 @@ async def fetch_competitor_data(patent_number: str, assignees: any, label: str =
         "assignees": assignees_list
     }
 
-    # Use None for no timeout — we wait as long as the API needs to respond.
-    # The ML model on the server may take a variable amount of time depending on load.
-    # httpx.Timeout(None) means: wait indefinitely for the server to respond.
+    # Use None for read timeout — we wait as long as the ML model needs to respond.
+    # connect/write/pool have short timeouts to fail fast on network issues.
     timeout = httpx.Timeout(
         connect=10.0,   # fail fast if we can't even connect
         read=None,      # wait as long as needed for the ML response
@@ -55,7 +41,9 @@ async def fetch_competitor_data(patent_number: str, assignees: any, label: str =
         pool=10.0
     )
 
-    async with _get_semaphore():
+    # threading.Semaphore: blocks the thread (not the event loop) until a slot is free.
+    # This is correct for Celery's --pool=threads mode.
+    with _competitor_semaphore:
         for attempt in range(1, max_retries + 1):
             try:
                 print(f"[{label}] Competitor API call for {patent_number} (Attempt {attempt}/{max_retries})...")
