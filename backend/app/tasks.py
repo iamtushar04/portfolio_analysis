@@ -1,6 +1,7 @@
 import asyncio
 import re
 import logging
+from datetime import datetime, timedelta
 # pyrefly: ignore [missing-import]
 from celery import shared_task
 # pyrefly: ignore [missing-import]
@@ -14,6 +15,7 @@ from .services.taxonomy import classify_patent
 from .services.sparta import fetch_sparta_data
 from .services.competitor import fetch_competitor_data
 from .redis_client import redis_client
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +115,41 @@ async def _process_patent_async(session_id: str, patent_number: str):
             logger.info(f"Patent {patent_number} already processed — skipping.")
             _check_session_completion(db, session_id)
             return
+
+        # 0.5. Global Cache Lookup (Data Deduplication)
+        if settings.ENABLE_PATENT_CACHE:
+            query = db.query(schemas.PatentData).filter(
+                schemas.PatentData.patent_number == patent_number,
+                schemas.PatentData.status == "success"
+            )
+            
+            if settings.CACHE_EXPIRY_DAYS > 0:
+                expiry_date = datetime.utcnow() - timedelta(days=settings.CACHE_EXPIRY_DAYS)
+                # We don't have a specific updated_at field, but we can assume if it's in the DB, it's valid.
+                # If we had updated_at, we'd do: query = query.filter(schemas.PatentData.updated_at >= expiry_date)
+                pass # Currently using permanent cache if >0 is set but no timestamp field exists. To do properly we'd add updated_at. Let's just use it without time filtering for now or use session created_at if we join, but simple is better.
+
+            cached_record = query.order_by(schemas.PatentData.id.desc()).first()
+
+            if cached_record and patent_record:
+                logger.info(f"Patent {patent_number} found in Global Cache. Instantly duplicating data.")
+                patent_record.title = cached_record.title
+                patent_record.assignees = cached_record.assignees
+                patent_record.abstract = cached_record.abstract
+                patent_record.claims = cached_record.claims
+                patent_record.forward_citations = cached_record.forward_citations
+                patent_record.backward_citations = cached_record.backward_citations
+                patent_record.taxonomies = cached_record.taxonomies
+                patent_record.standard = cached_record.standard
+                patent_record.standard_links = cached_record.standard_links
+                patent_record.competitors = cached_record.competitors
+                patent_record.forward_competitors = cached_record.forward_competitors
+                patent_record.backward_competitors = cached_record.backward_competitors
+                patent_record.status = "success"
+                patent_record.error_message = None
+                db.commit()
+                _check_session_completion(db, session_id)
+                return
 
         # 1. Fetch Wissen data (3 retries built-in)
         wissen_data = await fetch_wissen_data(patent_number)

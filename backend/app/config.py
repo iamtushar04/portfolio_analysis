@@ -20,4 +20,8 @@ class Settings:
     LANGFUSE_PUBLIC_KEY: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
     LANGFUSE_HOST: str = os.getenv("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
 
+    # Global patent caching controls
+    ENABLE_PATENT_CACHE: bool = os.getenv("ENABLE_PATENT_CACHE", "true").lower() == "true"
+    CACHE_EXPIRY_DAYS: int = int(os.getenv("CACHE_EXPIRY_DAYS", "0"))
+
 settings = Settings()
