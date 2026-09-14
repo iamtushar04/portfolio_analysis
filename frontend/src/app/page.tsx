@@ -1,14 +1,17 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, FolderOpen, ArrowRight, Trash2, LogOut } from 'lucide-react';
+import { Plus, FolderOpen, ArrowRight, Trash2, LogOut, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { config } from '../config';
 
 export default function Home() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sessionToDelete, setSessionToDelete] = useState<{id: string, name: string} | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newSessionName, setNewSessionName] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -40,19 +43,23 @@ export default function Home() {
     }
   };
 
-  const createSession = async () => {
-    const name = prompt("Enter Session Name:", `Session ${new Date().toLocaleDateString()}`);
-    if (!name) return;
+  const executeCreateSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSessionName.trim()) return;
+    
+    setIsCreateModalOpen(false);
+    const loadingToast = toast.loading('Creating session...');
     
     try {
-      const res = await axios.post(`${config.API_URL}/api/sessions/?name=${encodeURIComponent(name)}`, {}, getHeaders());
+      const res = await axios.post(`${config.API_URL}/api/sessions/?name=${encodeURIComponent(newSessionName.trim())}`, {}, getHeaders());
       if (res.data && res.data.id) {
+        toast.success('Session created successfully!', { id: loadingToast });
         router.push(`/sessions/${res.data.id}`);
       } else {
-        alert("Session created but ID missing");
+        toast.error('Session created but ID missing', { id: loadingToast });
       }
     } catch (error: any) {
-      alert("Failed to create session");
+      toast.error('Failed to create session', { id: loadingToast });
       if (error?.response?.status === 401) {
         localStorage.removeItem("token");
         router.push("/login");
@@ -75,9 +82,10 @@ export default function Home() {
     
     try {
       await axios.delete(`${config.API_URL}/api/sessions/${id}`, getHeaders());
+      toast.success('Session deleted');
     } catch (error: any) {
       console.error("Failed to delete session", error);
-      alert("Failed to delete session.");
+      toast.error("Failed to delete session");
       if (error?.response?.status === 401) {
         localStorage.removeItem("token");
         router.push("/login");
@@ -108,7 +116,10 @@ export default function Home() {
         </div>
         
         <button 
-          onClick={createSession}
+          onClick={() => {
+            setNewSessionName(`Session ${new Date().toLocaleDateString()}`);
+            setIsCreateModalOpen(true);
+          }}
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
         >
           <Plus size={20} />
@@ -171,6 +182,58 @@ export default function Home() {
               <p className="text-slate-400">Create a new session to start analyzing patents.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Create Session Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsCreateModalOpen(false)}>
+          <div 
+            className="glass-panel max-w-md w-full p-6 rounded-2xl shadow-2xl border border-slate-700/60"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-slate-200">Create New Session</h3>
+              <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={executeCreateSession}>
+              <div className="mb-6">
+                <label htmlFor="sessionName" className="block text-sm font-medium text-slate-400 mb-2">
+                  Session Name
+                </label>
+                <input
+                  id="sessionName"
+                  type="text"
+                  autoFocus
+                  value={newSessionName}
+                  onChange={(e) => setNewSessionName(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all placeholder:text-slate-500"
+                  placeholder="e.g. Q3 Telecomm Patents"
+                  required
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={!newSessionName.trim()}
+                  className="px-6 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 shadow-lg shadow-indigo-500/20 transition-all"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

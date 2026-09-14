@@ -126,7 +126,7 @@ export default function SessionDetail() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto p-4 md:p-8 pt-12">
+    <main className="w-full px-4 md:px-8 pt-12 pb-4">
       <button
         onClick={() => router.push('/')}
         className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"

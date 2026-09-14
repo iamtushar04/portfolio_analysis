@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # We are using the external Postgres and Redis on the remote server, 
+  # so we do not need to spin up local containers for them.
+
   postgres:
     image: postgres:15-alpine
     container_name: portfolio_postgres
@@ -27,16 +30,16 @@ services:
     build: ./backend
     container_name: portfolio_backend
     ports:
-      - "8001:8001"
+      - "8513:8513"
     env_file:
       - ./backend/.env
     environment:
       # These explicitly override the 'localhost' variables defined in .env
-      DATABASE_URL: postgresql://postgres:#123Wissen@135.181.19.83:5432/portfolio_analysis
-      REDIS_URL: redis://135.181.19.83:6379/6
-    # depends_on:
-    #   - postgres
-    #   - redis
+      DATABASE_URL: postgresql://postgres:wissen67@postgres:5432/portfolio_analysis
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
     restart: unless-stopped
 
   celery_worker:
@@ -46,19 +49,19 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://postgres:#123Wissen@135.181.19.83:5432/portfolio_analysis
-      REDIS_URL: redis://135.181.19.83:6379/6
+      DATABASE_URL: postgresql://postgres:wissen67@postgres:5432/portfolio_analysis
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       - backend
-    #   - redis
-    #   - postgres
+      - redis
+      - postgres
     restart: unless-stopped
 
   frontend:
     build: ./frontend
     container_name: portfolio_frontend
     ports:
-      - "3000:3000"
+      - "8511:8511"
     depends_on:
       - backend
     restart: unless-stopped

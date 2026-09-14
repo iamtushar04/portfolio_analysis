@@ -125,7 +125,19 @@ async def upload_excel(
     contents = await file.read()
     try:
         df = pd.read_excel(io.BytesIO(contents))
-        patent_col = df.columns[0]
+        
+        # Smart column detection
+        patent_col = None
+        for col in df.columns:
+            col_name = str(col).lower()
+            if 'patent' in col_name or 'publication' in col_name:
+                patent_col = col
+                break
+        
+        # Fallback to existing behavior (first column) if no matching header is found
+        if patent_col is None:
+            patent_col = df.columns[0]
+            
         raw_numbers = df[patent_col].dropna().astype(str).tolist()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading Excel file: {str(e)}")
