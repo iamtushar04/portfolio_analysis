@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import axios from "axios";
 import OtpInput from "../../components/OtpInput";
@@ -120,8 +121,16 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-md w-full glass-panel rounded-2xl p-8 shadow-2xl">
         <div className="relative">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2">Wissen Research</h1>
+          <div className="text-center mb-8 flex flex-col items-center justify-center">
+            <div className="relative h-14 w-64 mb-4 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+              <Image 
+                src="/logo.png" 
+                alt="Wissen Research Logo" 
+                fill
+                className="object-contain" 
+                priority
+              />
+            </div>
             <h2 className="text-lg text-slate-400">
               {!isOtpWindow ? "Sign in to your account" : "OTP Verification"}
             </h2>
