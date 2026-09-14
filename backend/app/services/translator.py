@@ -66,13 +66,14 @@ def batch_translate_names(db: Session, names: list[str]) -> dict[str, str]:
 
     if names_to_translate and client:
         # --- Dynamic Chunk Sizing ---
-        # OpenAI output budget: 4096 tokens max. We leave ~600 as margin = 3500 usable.
-        # 1 token ≈ 4 characters. So usable output chars ≈ 3500 * 4 = 14,000 chars.
-        # A translated JSON entry is roughly 2x the input name length (original + translated + JSON syntax).
-        # chunk_size = floor(14000 / (avg_name_len * 2)), clamped between 20 and 300.
+        # OpenAI output budget: we use gpt-4o-mini's max (16384 tokens). We target staying
+        # well under it by using 8000 output tokens as our safe budget = 32,000 output chars.
+        # English translations of CJK names tend to be 3-4x longer than the original.
+        # We use 4x as the multiplier with 20 chars overhead per entry.
+        # chunk_size = floor(32000 / (avg_name_len * 4 + 20)), clamped between 10 and 150.
         avg_name_len = sum(len(n) for n in names_to_translate) / len(names_to_translate)
-        estimated_chars_per_entry = max(avg_name_len * 2, 20)  # floor at 20 to avoid div-by-zero
-        CHUNK_SIZE = max(20, min(300, int(14000 / estimated_chars_per_entry)))
+        estimated_output_chars_per_entry = max(avg_name_len * 4 + 20, 40)
+        CHUNK_SIZE = max(10, min(150, int(32000 / estimated_output_chars_per_entry)))
         
         total_chunks = (len(names_to_translate) + CHUNK_SIZE - 1) // CHUNK_SIZE
         logger.info(f"Dynamic chunk size: {CHUNK_SIZE} (avg name length: {avg_name_len:.1f} chars, total chunks: {total_chunks})")
@@ -106,7 +107,7 @@ def batch_translate_names(db: Session, names: list[str]) -> dict[str, str]:
                     messages=[{"role": "user", "content": prompt}],
                     response_format={"type": "json_object"},
                     temperature=0.0,
-                    max_tokens=4096
+                    max_tokens=16384  # gpt-4o-mini maximum — prevents Unterminated string truncation
                 )
 
                 result_text = response.choices[0].message.content
