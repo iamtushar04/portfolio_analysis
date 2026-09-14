@@ -5,9 +5,11 @@ from typing import List
 import uuid
 import pandas as pd
 import io
+import time
 
 from ..database import get_db
 from ..models import schemas
+from ..logging_config import logger
 from ..services.excel_export import generate_session_excel
 from ..tasks import process_patent_task
 from ..redis_client import redis_client
@@ -123,6 +125,10 @@ async def upload_excel(
         raise HTTPException(status_code=400, detail="Only Excel files are supported")
 
     contents = await file.read()
+    
+    logger.info(f"[User {current_user_id}] [Session {session_id}] Starting Excel file processing: {file.filename} (Size: {len(contents)} bytes)")
+    parse_start_time = time.perf_counter()
+    
     try:
         df = pd.read_excel(io.BytesIO(contents))
         
@@ -176,6 +182,9 @@ async def upload_excel(
     # Trigger the round-robin dispatcher to schedule tasks across all active sessions
     from ..tasks import dispatch_round_robin_tasks
     dispatch_round_robin_tasks.delay()
+
+    parse_duration = time.perf_counter() - parse_start_time
+    logger.info(f"[{session_id}] Successfully parsed {len(patent_numbers)} unique patents from Excel in {parse_duration:.2f}s")
 
     return {
         "message": f"Upload successful. {len(patent_numbers)} patents queued for background processing.",

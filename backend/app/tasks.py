@@ -1,6 +1,7 @@
 import asyncio
 import re
 import logging
+import time
 from datetime import datetime, timedelta
 # pyrefly: ignore [missing-import]
 from celery import shared_task
@@ -16,8 +17,7 @@ from .services.sparta import fetch_sparta_data
 from .services.competitor import fetch_competitor_data
 from .redis_client import redis_client
 from .config import settings
-
-logger = logging.getLogger(__name__)
+from .logging_config import logger, correlation_id_ctx
 
 
 @celery_app.task(name="app.tasks.dispatch_round_robin_tasks")
@@ -28,6 +28,9 @@ def dispatch_round_robin_tasks():
     Repeats until all pending patents for all active sessions are queued for processing.
     Ensures true multi-user fairness regardless of session size.
     """
+    # Set correlation id for dispatcher
+    correlation_id_ctx.set("dispatcher")
+    
     active_sessions = list(redis_client.smembers("active_sessions_set"))
     if not active_sessions:
         return "No active sessions to dispatch."
@@ -48,8 +51,8 @@ def dispatch_round_robin_tasks():
             sessions_to_remove.append(session_id)
 
     # Clean up completed sessions from active set
-    for session_id in sessions_to_remove:
-        redis_client.srem("active_sessions_set", session_id)
+    if sessions_to_remove:
+        redis_client.srem("active_sessions_set", *sessions_to_remove)
 
     # If there are still active sessions with remaining patents, queue another dispatch pass
     remaining_active = list(redis_client.smembers("active_sessions_set"))
@@ -72,6 +75,9 @@ def process_patent_task(self, session_id: str, patent_number: str):
     Multiple users' patents run simultaneously in the shared worker pool.
     Each task gets its own DB connection (no shared state / connection exhaustion).
     """
+    # Set the correlation ID for this entire celery task to match the session
+    correlation_id_ctx.set(f"session-{session_id[:8]}")
+    
     try:
         # asyncio.run() is the correct, Python 3.12-approved way to run async code
         # from a synchronous Celery task. It:
@@ -97,6 +103,9 @@ def process_patent_task(self, session_id: str, patent_number: str):
 
 async def _process_patent_async(session_id: str, patent_number: str):
     """Core async patent processing logic — identical to worker.py but with own DB session."""
+    logger.info(f"[{session_id}] Starting processing for patent {patent_number}")
+    overall_start = time.perf_counter()
+    
     db = SessionLocal()
     try:
         # 0. Check if session was deleted (abort if true)
@@ -152,7 +161,11 @@ async def _process_patent_async(session_id: str, patent_number: str):
                 return
 
         # 1. Fetch Wissen data (3 retries built-in)
+        wissen_start = time.perf_counter()
         wissen_data = await fetch_wissen_data(patent_number)
+        wissen_duration = time.perf_counter() - wissen_start
+        logger.info(f"[{session_id}] Patent {patent_number} - Fetched Wissen data in {wissen_duration:.2f}s")
+        
         if not wissen_data:
             raise ValueError(f"Wissen API returned empty data for {patent_number}")
 
@@ -169,12 +182,18 @@ async def _process_patent_async(session_id: str, patent_number: str):
         assignees_list = [a for a in raw_assignees if a and str(a).strip()]
 
         # 3. Taxonomy classification with Langfuse observability & cost tracking (3 retries built-in)
+        taxonomy_start = time.perf_counter()
         taxonomy_data = await classify_patent(cpc_list, abstract, claims_truncated, patent_number=patent_number, session_id=session_id)
+        taxonomy_duration = time.perf_counter() - taxonomy_start
+        logger.info(f"[{session_id}] Patent {patent_number} - Taxonomy classified in {taxonomy_duration:.2f}s")
 
         # 4. Sparta standard mapping (3 retries built-in, strip kind code)
         match = re.match(r"^([A-Z]{2}\d+)", patent_number)
         no_kind_code = match.group(1) if match else patent_number
+        sparta_start = time.perf_counter()
         sparta_data = await fetch_sparta_data(no_kind_code)
+        sparta_duration = time.perf_counter() - sparta_start
+        logger.info(f"[{session_id}] Patent {patent_number} - Sparta standards fetched in {sparta_duration:.2f}s")
 
         # 5. Competitor search for Forward and Backward Citation Assignees
         fwd_citations = wissen_data.get("forward_citations_deduped", [])
@@ -199,10 +218,13 @@ async def _process_patent_async(session_id: str, patent_number: str):
                     bwd_assignees_set.add(cleaned_a)
 
         # Run Competitor API for Forward Assignees and Backward Assignees in parallel (2 API calls)
+        comp_start = time.perf_counter()
         fwd_comp_res, bwd_comp_res = await asyncio.gather(
             fetch_competitor_data(patent_number, list(fwd_assignees_set), label="Forward"),
             fetch_competitor_data(patent_number, list(bwd_assignees_set), label="Backward")
         )
+        comp_duration = time.perf_counter() - comp_start
+        logger.info(f"[{session_id}] Patent {patent_number} - Competitors fetched in {comp_duration:.2f}s")
 
         fwd_competitors = fwd_comp_res.get("competitors", [])
         bwd_competitors_raw = bwd_comp_res.get("competitors", [])
@@ -231,7 +253,9 @@ async def _process_patent_async(session_id: str, patent_number: str):
             patent_record.status = "success"
             patent_record.error_message = None
             db.commit()
-            logger.info(f"Patent {patent_number} processed successfully.")
+            
+            total_duration = time.perf_counter() - overall_start
+            logger.info(f"[{session_id}] Patent {patent_number} FULLY processed successfully in {total_duration:.2f}s.")
             
             # Check if this was the last patent to process
             _check_session_completion(db, session_id)

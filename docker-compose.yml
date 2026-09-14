@@ -40,6 +40,8 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - ./backend/logs:/app/logs
     restart: unless-stopped
 
   celery_worker:
@@ -55,6 +57,8 @@ services:
       - backend
       - redis
       - postgres
+    volumes:
+      - ./backend/logs:/app/logs
     restart: unless-stopped
 
   frontend:

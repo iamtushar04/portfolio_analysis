@@ -1,6 +1,6 @@
 "use client";
-import React, { useEffect, useRef } from 'react';
-import { X, Users, ExternalLink } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Users, ExternalLink, Folder, FolderOpen, FileText, ChevronRight, ChevronDown, Network } from 'lucide-react';
 
 function AssigneeChip({ assignees, fallback }: { assignees?: string[]; fallback?: string }) {
   let list: string[] = [];
@@ -16,6 +16,71 @@ function AssigneeChip({ assignees, fallback }: { assignees?: string[]; fallback?
       {list.slice(0, 3).join(', ')}
       {list.length > 3 && <span className="text-indigo-400">+{list.length - 3} more</span>}
     </span>
+  );
+}
+
+function TaxonomyNode({ name, childrenObj, level = 0 }: { name: string, childrenObj: any, level?: number }) {
+  const [isOpen, setIsOpen] = useState(level < 1); // Auto-open first level
+  const hasChildren = childrenObj && Object.keys(childrenObj).length > 0;
+
+  return (
+    <div className="flex flex-col">
+      <div 
+        className={`flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-white/5 transition-colors ${hasChildren ? 'cursor-pointer' : ''}`}
+        onClick={() => hasChildren && setIsOpen(!isOpen)}
+        style={{ paddingLeft: `${level * 16 + 8}px` }}
+      >
+        {hasChildren ? (
+          isOpen ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />
+        ) : (
+          <div className="w-3.5" /> 
+        )}
+        
+        {hasChildren ? (
+          isOpen ? <FolderOpen size={14} className="text-amber-400" /> : <Folder size={14} className="text-amber-400" />
+        ) : (
+          <FileText size={14} className="text-blue-400" />
+        )}
+        
+        <span className={`text-sm ${level === 0 ? 'text-slate-200 font-semibold' : 'text-slate-300'}`}>
+          {name}
+        </span>
+      </div>
+      
+      {hasChildren && isOpen && (
+        <div className="flex flex-col border-l border-slate-700/50 ml-[22px] mt-1 mb-1">
+          {Object.entries(childrenObj).map(([childName, grandChildren]) => (
+            <TaxonomyNode key={childName} name={childName} childrenObj={grandChildren} level={level + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaxonomyTree({ taxonomies }: { taxonomies: any[] }) {
+  if (!taxonomies || taxonomies.length === 0) {
+    return <p className="text-sm text-slate-500 italic px-2">No taxonomy data available.</p>;
+  }
+
+  // Build tree from flat array
+  const tree: any = {};
+  taxonomies.forEach(tax => {
+    const domain = tax.domain || 'Unknown Domain';
+    const topic = tax.topic || 'Unknown Topic';
+    const subtopic = tax.subtopic || 'Unknown Subtopic';
+
+    if (!tree[domain]) tree[domain] = {};
+    if (!tree[domain][topic]) tree[domain][topic] = {};
+    if (!tree[domain][topic][subtopic]) tree[domain][topic][subtopic] = {};
+  });
+
+  return (
+    <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+      {Object.entries(tree).map(([domainName, topics]) => (
+        <TaxonomyNode key={domainName} name={domainName} childrenObj={topics} level={0} />
+      ))}
+    </div>
   );
 }
 
@@ -129,6 +194,18 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                       {patent.abstract || <span className="italic text-slate-500">No abstract available</span>}
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Taxonomy Card */}
+              <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-cyan-600" />
+                <div className="pl-5 pr-4 pt-4 pb-4">
+                  <h3 className="text-[11px] font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-4 h-px bg-blue-500/60 inline-block" />
+                    Taxonomy Classification
+                  </h3>
+                  <TaxonomyTree taxonomies={patent.taxonomies} />
                 </div>
               </div>
 
