@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Users, ExternalLink } from 'lucide-react';
+import { Users, ExternalLink, Ghost } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import PatentDetailDrawer from './PatentDetailDrawer';
 
@@ -242,7 +242,15 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedPatent, patents]);
 
-  if (!patents || patents.length === 0) return null;
+  if (!patents || patents.length === 0) {
+    return (
+      <div className="w-full bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+        <Ghost size={48} className="text-slate-600 mb-4 opacity-50" />
+        <h3 className="text-lg font-bold text-slate-400">No patents match your search</h3>
+        <p className="text-sm text-slate-500 mt-2">Try adjusting your search terms.</p>
+      </div>
+    );
+  }
 
   return (
     <>

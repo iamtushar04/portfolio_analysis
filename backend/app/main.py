@@ -14,7 +14,7 @@ app = FastAPI(title="Patent Portfolio Analysis API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://135.181.19.83:8511", "http://localhost:8511"], # Allow production and local frontend
+    allow_origins=["http://135.181.19.83:8511", "http://localhost:8511", "https://gem-patents.wissenresearch.com"], # Allow production and local frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

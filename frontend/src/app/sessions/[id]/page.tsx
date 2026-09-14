@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { UploadCloud, ArrowLeft, RefreshCw, Download } from 'lucide-react';
+import { UploadCloud, ArrowLeft, RefreshCw, Download, Search } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import ResultsTable from '../../../components/ResultsTable';
 import { config } from '../../../config';
 
@@ -17,6 +18,7 @@ export default function SessionDetail() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -57,6 +59,7 @@ export default function SessionDetail() {
     if (!file) return;
 
     setUploading(true);
+    const loadingToast = toast.loading("Uploading file...");
     const formData = new FormData();
     formData.append("file", file);
 
@@ -68,9 +71,10 @@ export default function SessionDetail() {
           "Authorization": `Bearer ${token}`
         }
       });
+      toast.success("Upload successful! Processing started.", { id: loadingToast });
       fetchSession();
     } catch (error: any) {
-      alert(error.response?.data?.detail || "Upload failed");
+      toast.error(error.response?.data?.detail || "Upload failed", { id: loadingToast });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -100,6 +104,7 @@ export default function SessionDetail() {
 
   const handleExport = () => {
     const token = localStorage.getItem("token");
+    const exportToast = toast.loading("Generating export...");
     
     // For downloads, we need to fetch via fetch/axios to pass headers, then create object url
     axios.get(`${API_BASE}/api/sessions/${sessionId}/export`, {
@@ -119,9 +124,10 @@ export default function SessionDetail() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      toast.success("Export downloaded!", { id: exportToast });
     }).catch(error => {
       console.error("Export failed", error);
-      alert("Failed to export session.");
+      toast.error("Failed to export session.", { id: exportToast });
     });
   };
 
@@ -146,7 +152,19 @@ export default function SessionDetail() {
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center w-full md:w-auto mt-4 md:mt-0">
+          {(session.status === 'completed' || session.status === 'processing') && (
+            <div className="flex flex-1 md:w-[280px] items-center gap-2 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2.5 focus-within:border-indigo-500/50 transition-colors shadow-lg">
+              <Search size={16} className="text-slate-400 shrink-0" />
+              <input 
+                type="text" 
+                placeholder="Search patents..." 
+                className="bg-transparent border-none outline-none text-sm text-slate-300 w-full placeholder:text-slate-500"
+                value={globalSearch}
+                onChange={e => setGlobalSearch(e.target.value)}
+              />
+            </div>
+          )}
           {session.status === 'pending' && (
             <>
               <input
@@ -215,7 +233,15 @@ export default function SessionDetail() {
       {/* Results Table */}
       {(session.status === 'processing' || session.status === 'completed') && (
         <div className="glass-panel rounded-xl overflow-hidden shadow-2xl">
-          <ResultsTable patents={session.patents} />
+          {(() => {
+            const patentsList = session.patents || [];
+            const filteredPatents = patentsList.filter((p: any) => 
+              p.patent_number?.toLowerCase().includes(globalSearch.toLowerCase()) || 
+              p.title?.toLowerCase().includes(globalSearch.toLowerCase()) ||
+              (p.assignees && p.assignees.join(' ').toLowerCase().includes(globalSearch.toLowerCase()))
+            );
+            return <ResultsTable patents={filteredPatents} />;
+          })()}
         </div>
       )}
     </main>
