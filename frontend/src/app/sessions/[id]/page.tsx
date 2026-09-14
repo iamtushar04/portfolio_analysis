@@ -19,6 +19,8 @@ export default function SessionDetail() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [translateExport, setTranslateExport] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -102,12 +104,14 @@ export default function SessionDetail() {
     ? Math.round((session.processed_patents / session.total_patents) * 100)
     : 0;
 
-  const handleExport = () => {
+  const handleExport = (translate: boolean) => {
+    setShowExportModal(false);
     const token = localStorage.getItem("token");
-    const exportToast = toast.loading("Generating export...");
+    const exportToast = toast.loading(translate ? "Translating names & generating export..." : "Generating export...");
     
     // For downloads, we need to fetch via fetch/axios to pass headers, then create object url
     axios.get(`${API_BASE}/api/sessions/${sessionId}/export`, {
+      params: { translate },
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'blob'
     }).then(response => {
@@ -188,7 +192,7 @@ export default function SessionDetail() {
           {(session.status === 'completed' || session.status === 'processing') && (
             <button
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-emerald-600/20 border border-emerald-500/30"
-              onClick={handleExport}
+              onClick={() => setShowExportModal(true)}
             >
               <Download size={20} />
               Export Excel
@@ -242,6 +246,47 @@ export default function SessionDetail() {
             );
             return <ResultsTable patents={filteredPatents} />;
           })()}
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-white mb-2">Export Configuration</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Would you like to translate foreign company names (Assignees, Competitors) to English?
+            </p>
+            
+            <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-800 transition-colors mb-6">
+              <input 
+                type="checkbox" 
+                className="w-5 h-5 rounded border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-slate-900"
+                checked={translateExport}
+                onChange={(e) => setTranslateExport(e.target.checked)}
+              />
+              <div>
+                <div className="text-white font-medium">Translate to English</div>
+                <div className="text-xs text-slate-500">Uses AI to translate Chinese/Japanese names</div>
+              </div>
+            </label>
+
+            <div className="flex gap-3 justify-end">
+              <button 
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 text-slate-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleExport(translateExport)}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all"
+              >
+                <Download size={16} />
+                Download Excel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

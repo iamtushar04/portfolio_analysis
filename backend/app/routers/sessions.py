@@ -96,9 +96,14 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
     }
 
 @router.get("/{session_id}/export")
-def export_session_excel(session_id: str, db: DBSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+def export_session_excel(
+    session_id: str, 
+    translate: bool = False,
+    db: DBSession = Depends(get_db), 
+    current_user_id: str = Depends(get_current_user_id)
+):
     session_data = get_session(session_id, db, current_user_id)
-    excel_bytes = generate_session_excel(session_data)
+    excel_bytes = generate_session_excel(session_data, db=db, translate=translate)
     safe_name = "".join(c for c in session_data.get("name", "session") if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
     filename = f"{safe_name}_{session_id[:8]}.xlsx"
     return StreamingResponse(

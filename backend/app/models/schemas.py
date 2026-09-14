@@ -50,3 +50,10 @@ class PatentData(Base):
     error_message = Column(String, nullable=True)
     
     session = relationship("Session", back_populates="patents")
+
+class TranslationCache(Base):
+    __tablename__ = "translation_cache"
+    
+    original_text = Column(String, primary_key=True, index=True)
+    english_text = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -370,9 +370,10 @@ from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from .translator import batch_translate_names
 
 
-def generate_session_excel(session_data: dict) -> bytes:
+def generate_session_excel(session_data: dict, db=None, translate: bool = False) -> bytes:
     """
     Generates a professionally formatted, multi-sheet Excel file (.xlsx)
     containing complete portfolio analysis information for a session.
@@ -385,6 +386,66 @@ def generate_session_excel(session_data: dict) -> bytes:
     wb = Workbook()
     # Remove default sheet
     wb.remove(wb.active)
+
+    patents = session_data.get("patents", [])
+
+    if translate and db:
+        # --- Step 1: Aggregate ALL unique names from every field ---
+        all_names = set()
+        for p in patents:
+            # Top-level patent assignees
+            assignees = p.get("assignees") or []
+            if isinstance(assignees, list):
+                all_names.update(a for a in assignees if a)
+            elif isinstance(assignees, str) and assignees:
+                all_names.add(assignees)
+                
+            # Forward/Backward competitors
+            all_names.update(c for c in (p.get("forward_competitors") or []) if c)
+            all_names.update(c for c in (p.get("backward_competitors") or []) if c)
+
+            # --- FIXED: Nested citation-level assignees ---
+            for cite in (p.get("forward_citations") or []):
+                for a in (cite.get("assignees") or []):
+                    if a:
+                        all_names.add(a)
+            for cite in (p.get("backward_citations") or []):
+                for a in (cite.get("assignees") or []):
+                    if a:
+                        all_names.add(a)
+        
+        # --- Step 2: Batch translate (with non-English filter inside translator) ---
+        translation_map = batch_translate_names(db, list(all_names))
+        
+        # --- Step 3: Replace names in-memory across ALL fields ---
+        for p in patents:
+            # Top-level patent assignees
+            assignees = p.get("assignees") or []
+            if isinstance(assignees, list):
+                p["assignees"] = [translation_map.get(a, a) for a in assignees]
+            elif isinstance(assignees, str):
+                p["assignees"] = translation_map.get(assignees, assignees)
+                
+            # Forward/Backward competitors
+            fwd_comps = p.get("forward_competitors") or []
+            if isinstance(fwd_comps, list):
+                p["forward_competitors"] = [translation_map.get(c, c) for c in fwd_comps]
+                
+            bwd_comps = p.get("backward_competitors") or []
+            if isinstance(bwd_comps, list):
+                p["backward_competitors"] = [translation_map.get(c, c) for c in bwd_comps]
+
+            # --- FIXED: Replace nested citation-level assignees ---
+            for cite in (p.get("forward_citations") or []):
+                cite_assignees = cite.get("assignees") or []
+                if isinstance(cite_assignees, list):
+                    cite["assignees"] = [translation_map.get(a, a) for a in cite_assignees]
+
+            for cite in (p.get("backward_citations") or []):
+                cite_assignees = cite.get("assignees") or []
+                if isinstance(cite_assignees, list):
+                    cite["assignees"] = [translation_map.get(a, a) for a in cite_assignees]
+
 
     # ---------------------------------------------------------
     # Styles
