@@ -257,7 +257,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                 <div className="pl-5 pr-4 pt-4 pb-4">
                   <h3 className="text-[11px] font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <span className="w-4 h-px bg-blue-500/60 inline-block" />
-                    Taxonomy Classification
+                    Technology Classification
                   </h3>
                   {isProcessing ? (
                     <div className="space-y-3 animate-pulse pt-2 px-2">

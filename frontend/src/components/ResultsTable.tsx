@@ -259,7 +259,7 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
         <div className="grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700">
           <div className="px-4 py-3 font-semibold">Patent No</div>
           <div className="px-4 py-3 font-semibold">Title & Assignee</div>
-          <div className="px-4 py-3 font-semibold">Taxonomy</div>
+          <div className="px-4 py-3 font-semibold">Technology</div>
           <div className="px-4 py-3 font-semibold">Standards</div>
           <div className="px-4 py-3 font-semibold text-center">Citations</div>
         </div>
