@@ -95,7 +95,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-red-400 text-slate-100 px-6 py-10 relative">
+    <main className="min-h-screen bg-white text-slate-100 px-6 py-10 relative">
 
   <div className="absolute top-8 right-8 z-50">
   <button
@@ -165,7 +165,7 @@ export default function Home() {
           rounded-full
           text-xs
           flex-col place-content-center
-          bg-red-500/10
+          bg-red-100
           text-gray-800
           border border-indigo-500/20
           ">
@@ -205,17 +205,13 @@ export default function Home() {
         }}
         className="
         flex items-center justify-center gap-2
-        px-6 py-3
+        px-3 py-2
         rounded-xl
-        bg-gradient-to-r
-        from-red-500
-        to-purple-500
-        hover:from-purple-600
-        hover:to-red-600
-        shadow-lg
-        shadow-red-600/30
+        bg-red-500
+        hover:bg-red-600
+        active:bg-red-700
+        shadow-md
         transition
-        hover:shadow-md
         font-semibold
         cursor-pointer"
       >

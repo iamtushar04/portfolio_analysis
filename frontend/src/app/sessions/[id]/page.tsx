@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import ResultsTable from '../../../components/ResultsTable';
 import { config } from '../../../config';
-
+import { BarLoader } from 'react-spinners';
 const API_BASE = config.API_URL;
 
 export default function SessionDetail() {
@@ -84,9 +84,11 @@ export default function SessionDetail() {
   };
 
   if (loading) return (
-    <main className="min-h-screeb flex justifu-center items-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-      <p className="text-slate-400 animate-pulse">Loading Session...</p>
+    <main className="min-h-screen flex justify-center items-center bg-white">
+      <div className='flex flex-col gap-5'>
+      <span><BarLoader color='red'/></span>
+      <p className="text-slate-700 font-semibold animate-pulse">Loading Session...</p>
+      </div>
     </main>
   );
 
@@ -94,8 +96,8 @@ export default function SessionDetail() {
     <div className="p-20 text-center text-red-400">
       <p className="text-xl font-bold mb-2">Session not found.</p>
       <p className="text-sm text-slate-500 mb-4">Session ID: {sessionId}</p>
-      <button onClick={() => router.push('/')} className="mt-4 text-indigo-400 hover:underline text-sm">
-        ← Back to Sessions
+      <button onClick={() => router.push('/')} className="mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm">
+      <ArrowLeft size={15} color='red'/> Back to Sessions
       </button>
     </div>
   );
@@ -136,71 +138,222 @@ export default function SessionDetail() {
   };
 
   return (
-    <main className="w-full bg-white px-4 md:px-8 pt-12 pb-4">
-      <button
-        onClick={() => router.push('/')}
-        className="flex items-center gap-2 text-gray-700 cursor-pointer transition"
-      >
-        <ArrowLeft size={16} /> Back to Sessions
-      </button>
+    <>
+    <header className="bg-red-300 container mx-auto w-full px-4 md:px-8 py-3">
+  <div className="rounded-2xl bg-red-300 shadow-md px-4 py-3">
 
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-white mb-2 flex items-center gap-3">
+    <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
+
+      {/* Left Section */}
+      <div className="flex items-center gap-4">
+
+        {/* Back Button */}
+        <button
+          onClick={() => router.push("/")}
+          className="
+            flex items-center gap-2
+            text-sm font-medium
+            text-slate-700
+            bg-white
+            hover:bg-gray-200
+            transition
+            px-3 py-1.5
+            rounded-lg
+            cursor-pointer
+          "
+        >
+          <ArrowLeft size={16} color="red" />
+          Back
+        </button>
+
+
+        {/* Session Info */}
+        <div className="flex items-center gap-3">
+
+          <h1 className="text-2xl font-semibold text-gray-700">
             {session.name}
-            {session.status === 'processing' && <RefreshCw size={20} className="text-indigo-800 animate-spin" />}
           </h1>
-          <p className="text-slate-400 flex gap-4">
-            <span>Status: <strong className="text-indigo-700 capitalize">{session.status}</strong></span>
-            <span>Total Patents: <strong>{session.total_patents}</strong></span>
-          </p>
-        </div>
 
-        <div className="flex gap-3 items-center w-full md:w-auto mt-4 md:mt-0">
-          {(session.status === 'completed' || session.status === 'processing') && (
-            <div className="focus-within:ring-3 focus-within:ring-blue-400 transition flex flex-1 md:w-[280px] items-center gap-2 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2.5 focus-within:border-indigo-500/50 transition shadow-lg">
-              <Search size={16} className="text-slate-400 shrink-0" />
-              <input 
-                type="text" 
-                placeholder="Search patents..." 
-                className="bg-transparent border-none outline-none text-sm text-slate-300 w-full placeholder:text-slate-500"
-                value={globalSearch}
-                onChange={e => setGlobalSearch(e.target.value)}
-              />
-            </div>
-          )}
-          {session.status === 'pending' && (
-            <>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".xlsx, .xls"
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
-              >
-                <UploadCloud size={20} />
-                {uploading ? 'Uploading...' : 'Upload Excel'}
-              </button>
-            </>
+
+          {session.status === "processing" && (
+            <RefreshCw
+              size={20}
+              className="text-yellow-400 animate-spin"
+            />
           )}
 
-          {(session.status === 'completed' || session.status === 'processing') && (
-            <button
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-emerald-600/20 border border-emerald-500/30"
-              onClick={() => setShowExportModal(true)}
+
+          {/* Status */}
+          <span
+            className="
+              flex items-center gap-2
+              px-3 py-1
+              rounded-full
+              bg-slate-700/80
+              text-sm
+              text-slate-200
+            "
+          >
+            Status:
+
+            <strong
+              className={`
+                capitalize
+                ${
+                  session.status === "completed"
+                    ? "text-emerald-400"
+                    : session.status === "processing"
+                    ? "text-yellow-400"
+                    : "text-red-400"
+                }
+              `}
             >
-              <Download size={20} />
-              Export Excel
-            </button>
-          )}
-        </div>
-      </header>
+              {session.status}
+            </strong>
 
+          </span>
+
+
+          {/* Patent Count */}
+          <span
+            className="
+              flex items-center gap-2
+              px-3 py-1
+              rounded-full
+              bg-slate-700/80
+              text-sm
+              text-slate-200
+            "
+          >
+            Patents:
+
+            <strong className="text-white">
+              {session.total_patents}
+            </strong>
+
+          </span>
+
+        </div>
+
+      </div>
+
+
+
+      {/* Right Section */}
+      <div className="flex items-center gap-3">
+
+
+        {/* Search */}
+        {(session.status === "completed" ||
+          session.status === "processing") && (
+
+          <div
+            className="
+              flex items-center gap-2
+              bg-slate-950/70
+              border border-slate-700
+              rounded-xl
+              foucs-within:ring-1 focus-within:ring-red-300
+              px-3 py-2
+              w-[260px]
+            "
+          >
+
+            <Search size={16} className="text-slate-400"/>
+
+            <input
+              type="text"
+              placeholder="Search patents..."
+              className="
+                bg-transparent
+                outline-none
+                text-sm
+                text-white
+                w-full
+                placeholder:text-slate-300
+              "
+              value={globalSearch}
+              onChange={(e)=>setGlobalSearch(e.target.value)}
+            />
+
+          </div>
+
+        )}
+
+
+
+        {/* Upload */}
+        {session.status === "pending" && (
+
+          <>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".xlsx,.xls"
+              className="hidden"
+            />
+
+            <button
+              onClick={()=>fileInputRef.current?.click()}
+              disabled={uploading}
+              className="
+                flex items-center gap-2
+                bg-emerald-600
+                hover:bg-emerald-500
+                text-white
+                px-4 py-2
+                rounded-xl
+                font-medium
+                transition
+                cursor-pointer
+              "
+            >
+              <UploadCloud size={18}/>
+
+              {uploading ? "Uploading..." : "Upload"}
+
+            </button>
+          </>
+
+        )}
+
+
+
+        {/* Export */}
+        {(session.status === "completed" ||
+          session.status === "processing") && (
+
+          <button
+            onClick={()=>setShowExportModal(true)}
+            className="
+              flex items-center gap-2
+              bg-green-600
+              hover:bg-green-700
+              active:bg-green-800
+              text-white
+              px-4 py-2
+              rounded-xl
+              font-medium
+              transition
+              cursor-pointer
+            "
+          >
+
+            <Download size={18}/>
+            Export
+
+          </button>
+
+        )}
+
+      </div>
+
+    </div>
+
+  </div>
+</header>
+    <main className='w-full bg-white px-4 md:px-8 pt-12 pb-4'>
       {/* Progress Bar */}
       {session.status === 'processing' && (
         <div className="mb-8 glass-panel p-6 rounded-xl">
@@ -289,6 +442,7 @@ export default function SessionDetail() {
           </div>
         </div>
       )}
-    </main>
+      </main>
+      </>
   );
 }

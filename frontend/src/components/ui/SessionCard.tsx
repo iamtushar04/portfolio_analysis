@@ -26,8 +26,8 @@ export default function SessionCard({
       bg-white/40
       backdrop-blur-xl
 
-      border
-      border-white/60
+      border-1
+      border-red-200
 
       p-5
 

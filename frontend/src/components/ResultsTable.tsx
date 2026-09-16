@@ -254,7 +254,7 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
 
   return (
     <>
-      <div className="w-full bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
+      <div className="w-full bg-gray-700 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
         {/* Sticky Header */}
         <div className="grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700">
           <div className="px-4 py-3 font-semibold">Patent No</div>
