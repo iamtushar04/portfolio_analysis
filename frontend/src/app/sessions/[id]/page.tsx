@@ -84,10 +84,10 @@ export default function SessionDetail() {
   };
 
   if (loading) return (
-    <div className="p-20 text-center">
+    <main className="min-h-screeb flex justifu-center items-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
       <p className="text-slate-400 animate-pulse">Loading Session...</p>
-    </div>
+    </main>
   );
 
   if (!session) return (
@@ -136,10 +136,10 @@ export default function SessionDetail() {
   };
 
   return (
-    <main className="w-full px-4 md:px-8 pt-12 pb-4">
+    <main className="w-full bg-white px-4 md:px-8 pt-12 pb-4">
       <button
         onClick={() => router.push('/')}
-        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
+        className="flex items-center gap-2 text-gray-700 cursor-pointer transition"
       >
         <ArrowLeft size={16} /> Back to Sessions
       </button>
@@ -148,17 +148,17 @@ export default function SessionDetail() {
         <div>
           <h1 className="text-3xl font-extrabold text-white mb-2 flex items-center gap-3">
             {session.name}
-            {session.status === 'processing' && <RefreshCw size={20} className="text-indigo-400 animate-spin" />}
+            {session.status === 'processing' && <RefreshCw size={20} className="text-indigo-800 animate-spin" />}
           </h1>
           <p className="text-slate-400 flex gap-4">
-            <span>Status: <strong className="text-indigo-300 capitalize">{session.status}</strong></span>
+            <span>Status: <strong className="text-indigo-700 capitalize">{session.status}</strong></span>
             <span>Total Patents: <strong>{session.total_patents}</strong></span>
           </p>
         </div>
 
         <div className="flex gap-3 items-center w-full md:w-auto mt-4 md:mt-0">
           {(session.status === 'completed' || session.status === 'processing') && (
-            <div className="flex flex-1 md:w-[280px] items-center gap-2 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2.5 focus-within:border-indigo-500/50 transition-colors shadow-lg">
+            <div className="focus-within:ring-3 focus-within:ring-blue-400 transition flex flex-1 md:w-[280px] items-center gap-2 bg-slate-900 border border-slate-700/60 rounded-lg px-3 py-2.5 focus-within:border-indigo-500/50 transition shadow-lg">
               <Search size={16} className="text-slate-400 shrink-0" />
               <input 
                 type="text" 
