@@ -88,6 +88,7 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
                 "competitors": p.competitors,
                 "forward_competitors": getattr(p, 'forward_competitors', []) or [],
                 "backward_competitors": getattr(p, 'backward_competitors', []) or [],
+                "ranked_forward_assignees": getattr(p, 'ranked_forward_assignees', []) or [],
                 "standard": p.standard,
                 "standard_links": p.standard_links,
                 "error_message": p.error_message

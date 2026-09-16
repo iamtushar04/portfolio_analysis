@@ -122,6 +122,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
 
   const [compSearch, setCompSearch] = useState("");
   const [citSearch, setCitSearch] = useState("");
+  const [rankBy, setRankBy] = useState<'topic' | 'subtopic'>('topic');
 
   const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -350,6 +351,107 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                         </div>
                       </div>
                     </>
+                  )}
+                </div>
+              </div>
+
+              {/* Relevance-Ranked Assignees Card */}
+              <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-500 to-orange-600" />
+                <div className="pl-5 pr-4 pt-4 pb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[11px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-4 h-px bg-amber-500/60 inline-block" />
+                      Relevance-Ranked Assignees
+                    </h3>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 rounded px-2 py-1">
+                        <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Rank By:</span>
+                        <select
+                          className="bg-transparent text-xs text-amber-300 font-medium outline-none border-none cursor-pointer"
+                          value={rankBy}
+                          onChange={(e) => setRankBy(e.target.value as 'topic' | 'subtopic')}
+                        >
+                          <option className="bg-slate-800 text-amber-300" value="topic">Topic</option>
+                          <option className="bg-slate-800 text-amber-300" value="subtopic">Subtopic</option>
+                        </select>
+                      </div>
+                      <span className="text-[10px] font-semibold text-amber-500/70">
+                        Top {patent.ranked_forward_assignees?.length || 0}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {isProcessing ? (
+                     <div className="space-y-4 animate-pulse pt-2 px-2">
+                        <div className="h-12 bg-slate-700/50 rounded-lg w-full"></div>
+                        <div className="h-12 bg-slate-700/50 rounded-lg w-full"></div>
+                     </div>
+                  ) : (!patent.ranked_forward_assignees || patent.ranked_forward_assignees.length === 0) ? (
+                    <EmptyState title="No Ranked Assignees" />
+                  ) : (
+                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar pr-1 space-y-3">
+                      {(() => {
+                         const sortedList = [...patent.ranked_forward_assignees].sort((a: any, b: any) => {
+                           const scoreA = rankBy === 'topic' ? (a.topic_avg || 0) : (a.subtopic_avg || 0);
+                           const scoreB = rankBy === 'topic' ? (b.topic_avg || 0) : (b.subtopic_avg || 0);
+                           return scoreB - scoreA;
+                         });
+                         return sortedList.map((assignee: any, i: number) => {
+                           const topicEvals = assignee.topic_evals || (assignee.topic_eval ? [assignee.topic_eval] : []);
+                         const subtopicEvals = assignee.subtopic_evals || (assignee.subtopic_eval ? [assignee.subtopic_eval] : []);
+                         
+                         const maxTopicScore = topicEvals.length > 0 ? Math.max(...topicEvals.map((e:any) => e.score || 0)) : 0;
+                         const maxSubtopicScore = subtopicEvals.length > 0 ? Math.max(...subtopicEvals.map((e:any) => e.score || 0)) : 0;
+                         const activeScore = rankBy === 'topic' ? (assignee.topic_avg || 0) : (assignee.subtopic_avg || 0);
+                         
+                         return (
+                          <div key={`ranked-${i}`} className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700/30">
+                              <span className="text-sm font-bold text-slate-200">{assignee.name}</span>
+                              <div className="flex gap-2 items-center">
+                                <span className={`text-sm font-bold px-2 py-0.5 rounded ${activeScore >= 5 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-700/50 text-slate-400'}`} title="Score">
+                                  {activeScore.toFixed(1)}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              {topicEvals.map((evalObj: any, idx: number) => evalObj.reason ? (
+                                <div key={`teval-${idx}`}>
+                                  <div className="text-[10px] font-semibold text-slate-500 uppercase flex items-center flex-wrap gap-x-1">
+                                    Topic Evidence {evalObj.term && <span className="text-indigo-400 normal-case">- {evalObj.term}</span>}
+                                    <span className="font-bold text-amber-500/80 normal-case">({evalObj.score}/10)</span>
+                                  </div>
+                                  <p className="text-xs text-slate-300 italic mt-0.5">{evalObj.reason}</p>
+                                  {evalObj.source && (
+                                    <a href={evalObj.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1">
+                                      <ExternalLink size={10} /> Source
+                                    </a>
+                                  )}
+                                </div>
+                              ) : null)}
+                              
+                              {subtopicEvals.map((evalObj: any, idx: number) => evalObj.reason ? (
+                                <div key={`seval-${idx}`}>
+                                  <div className="text-[10px] font-semibold text-slate-500 uppercase flex items-center flex-wrap gap-x-1">
+                                    Subtopic Evidence {evalObj.term && <span className="text-indigo-400 normal-case">- {evalObj.term}</span>}
+                                    <span className="font-bold text-amber-500/80 normal-case">({evalObj.score}/10)</span>
+                                  </div>
+                                  <p className="text-xs text-slate-300 italic mt-0.5">{evalObj.reason}</p>
+                                  {evalObj.source && (
+                                    <a href={evalObj.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1">
+                                      <ExternalLink size={10} /> Source
+                                    </a>
+                                  )}
+                                </div>
+                              ) : null)}
+                            </div>
+                          </div>
+                         );
+                        });
+                      })()}
+                    </div>
                   )}
                 </div>
               </div>

@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { Users, ExternalLink, Ghost } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Users, ExternalLink, Ghost, ArrowDownWideNarrow } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import PatentDetailDrawer from './PatentDetailDrawer';
 
@@ -64,7 +64,7 @@ function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?
   );
 }
 
-function PatentRow({ p, isSelected, onSelect }: { p: any; isSelected: boolean; onSelect: () => void }) {
+function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: boolean; onSelect: () => void; sortBy: 'topic' | 'subtopic' }) {
   const isPending = p.status === 'pending';
   const isFailed = p.status === 'failed';
 
@@ -82,12 +82,21 @@ function PatentRow({ p, isSelected, onSelect }: { p: any; isSelected: boolean; o
   });
 
   const canSelect = !isPending && !isFailed;
+  
+  let maxT = 0;
+  let maxS = 0;
+  if (p.ranked_forward_assignees) {
+    p.ranked_forward_assignees.forEach((ra: any) => {
+      if ((ra.topic_avg || 0) > maxT) maxT = ra.topic_avg || 0;
+      if ((ra.subtopic_avg || 0) > maxS) maxS = ra.subtopic_avg || 0;
+    });
+  }
 
   return (
     <div className={`flex flex-col border-b border-slate-700/50 ${isSelected ? 'bg-slate-800/50' : ''}`}>
       {/* Main Row */}
       <div
-        className={`grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
+        className={`grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
         onClick={() => canSelect && onSelect()}
       >
         {/* Patent Number */}
@@ -116,7 +125,7 @@ function PatentRow({ p, isSelected, onSelect }: { p: any; isSelected: boolean; o
               <div className="font-semibold text-slate-200 line-clamp-2" title={p.title}>
                 {p.title || 'Untitled Patent'}
               </div>
-              <div className="mt-1">
+              <div className="mt-1 flex items-center gap-2">
                 <AssigneeList assignees={p.assignees} fallback={p.assignee} />
               </div>
             </div>
@@ -210,6 +219,20 @@ function PatentRow({ p, isSelected, onSelect }: { p: any; isSelected: boolean; o
             </div>
           )}
         </div>
+
+        {/* Ranked Score */}
+        <div className="px-4 py-4 flex justify-center">
+          {isPending || isFailed ? (
+            <span className="text-slate-600">-</span>
+          ) : (
+            <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner">
+               <span className={`text-xl font-bold leading-none ${(sortBy === 'topic' ? maxT : maxS) >= 5 ? 'text-amber-400' : 'text-slate-400'}`}>
+                  {(sortBy === 'topic' ? maxT : maxS).toFixed(1)}
+               </span>
+               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Score</span>
+            </div>
+          )}
+        </div>
       </div>
 
     </div>
@@ -219,6 +242,30 @@ function PatentRow({ p, isSelected, onSelect }: { p: any; isSelected: boolean; o
 
 export default function ResultsTable({ patents }: { patents: any[] }) {
   const [selectedPatent, setSelectedPatent] = useState<any | null>(null);
+  const [sortBy, setSortBy] = useState<'subtopic' | 'topic'>('subtopic');
+  
+  const sortedPatents = useMemo(() => {
+    return [...patents].sort((a, b) => {
+      const getScores = (p: any) => {
+         let mT = 0; let mS = 0;
+         if (!p.ranked_forward_assignees) return { t: 0, s: 0 };
+         p.ranked_forward_assignees.forEach((ra: any) => {
+           if ((ra.topic_avg || 0) > mT) mT = ra.topic_avg || 0;
+           if ((ra.subtopic_avg || 0) > mS) mS = ra.subtopic_avg || 0;
+         });
+         return { t: mT, s: mS };
+      };
+      
+      const scoresA = getScores(a);
+      const scoresB = getScores(b);
+      
+      if (sortBy === 'topic') {
+        return scoresB.t - scoresA.t;
+      } else {
+        return scoresB.s - scoresA.s;
+      }
+    });
+  }, [patents, sortBy]);
 
   useEffect(() => {
     if (!selectedPatent) return;
@@ -256,24 +303,39 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
     <>
       <div className="w-full bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
         {/* Sticky Header */}
-        <div className="grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700">
+        <div className="grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700 items-center">
           <div className="px-4 py-3 font-semibold">Patent No</div>
           <div className="px-4 py-3 font-semibold">Title & Assignee</div>
           <div className="px-4 py-3 font-semibold">Technology</div>
           <div className="px-4 py-3 font-semibold">Standards</div>
           <div className="px-4 py-3 font-semibold text-center">Citations</div>
+          <div className="px-4 py-3 font-semibold text-center flex flex-col items-center justify-center border-l border-slate-700/50">
+            <span className="text-amber-400 mb-1">Ranked Score</span>
+            <div className="flex items-center gap-1 bg-slate-900/50 rounded px-1.5 py-0.5 w-fit">
+              <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">By:</span>
+              <select
+                className="bg-transparent text-[10px] text-amber-300 font-bold outline-none border-none cursor-pointer text-center"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'topic' | 'subtopic')}
+              >
+                <option className="bg-slate-800 text-amber-300" value="topic">Topic</option>
+                <option className="bg-slate-800 text-amber-300" value="subtopic">Subtopic</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Virtualized Body */}
         <div className="flex-1 min-h-0">
           <Virtuoso
             className="h-full w-full custom-scrollbar"
-            data={patents}
+            data={sortedPatents}
             itemContent={(_index, p) => (
               <PatentRow
                 p={p}
                 isSelected={selectedPatent?.patent_number === p.patent_number}
                 onSelect={() => setSelectedPatent(p)}
+                sortBy={sortBy}
               />
             )}
           />

@@ -8,6 +8,7 @@ load_dotenv(dotenv_path=env_path)
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY")
     
     WISSEN_API_BASE_URL: str = os.getenv("WISSEN_API_BASE_URL")
     SPARTA_API_BASE_URL: str = os.getenv("SPARTA_API_BASE_URL")
@@ -22,6 +23,7 @@ class Settings:
 
     # Global patent caching controls
     ENABLE_PATENT_CACHE: bool = os.getenv("ENABLE_PATENT_CACHE", "true").lower() == "true"
+    ENABLE_ASSIGNEE_RANKING_CACHE: bool = os.getenv("ENABLE_ASSIGNEE_RANKING_CACHE", "true").lower() == "true"
     CACHE_EXPIRY_DAYS: int = int(os.getenv("CACHE_EXPIRY_DAYS", "0"))
 
 settings = Settings()

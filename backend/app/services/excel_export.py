@@ -834,6 +834,100 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
         curr_row += 1
 
     # ---------------------------------------------------------
+    # 6. RANKED ASSIGNEES SHEET
+    # ---------------------------------------------------------
+    ws_ranked = wb.create_sheet(title="Ranked Assignees")
+    ws_ranked.views.sheetView[0].showGridLines = True
+    ws_ranked.freeze_panes = "A2"
+
+    ranked_headers = [
+        "Patent Number", "Title", "Assignee", 
+        "Topic Score", "Topic Reason", "Topic Source",
+        "Subtopic Score", "Subtopic Reason", "Subtopic Source"
+    ]
+    for col_num, h_text in enumerate(ranked_headers, 1):
+        cell = ws_ranked.cell(row=1, column=col_num, value=h_text)
+        cell.font = header_font
+        cell.fill = navy_header_fill
+        cell.alignment = align_center
+        cell.border = header_border
+    ws_ranked.row_dimensions[1].height = 26
+
+    curr_row = 2
+    for p_idx, p in enumerate(patents):
+        pat_num = p.get("patent_number", "")
+        pat_title = p.get("title", "")
+        
+        ranked_assignees = p.get("ranked_forward_assignees") or []
+        block_fill = block_fill_b if p_idx % 2 else block_fill_a
+        
+        if not ranked_assignees:
+            # Add an empty row for patents with no ranked assignees
+            for col_idx, val in enumerate([pat_num, pat_title, "—", "—", "—", "—", "—", "—", "—"], start=1):
+                c = ws_ranked.cell(row=curr_row, column=col_idx, value=val)
+                c.font = body_font
+                c.border = block_close_border
+                c.alignment = align_center_mid if col_idx in (1, 4, 7) else align_left_mid
+                c.fill = block_fill
+            curr_row += 1
+            continue
+            
+        assignee_names = []
+        all_t_scores = []
+        all_t_reasons = []
+        all_t_sources = []
+        all_s_scores = []
+        all_s_reasons = []
+        all_s_sources = []
+        
+        for ra in ranked_assignees:
+            a_name = ra.get("name", "")
+            assignee_names.append(a_name)
+            
+            t_evals = ra.get("topic_evals", [])
+            if not t_evals and "topic_eval" in ra: t_evals = [ra.get("topic_eval")]
+            s_evals = ra.get("subtopic_evals", [])
+            if not s_evals and "subtopic_eval" in ra: s_evals = [ra.get("subtopic_eval")]
+            
+            t_scores = "\n".join(f"{e.get('term', 'Topic')}: {e.get('score', '')}" for e in t_evals if e)
+            t_reasons = "\n\n".join(f"{e.get('term', 'Topic')}:\n{e.get('reason', '')}" for e in t_evals if e)
+            t_sources = "\n".join(f"{e.get('source', '')}" for e in t_evals if e)
+            
+            s_scores = "\n".join(f"{e.get('term', 'Subtopic')}: {e.get('score', '')}" for e in s_evals if e)
+            s_reasons = "\n\n".join(f"{e.get('term', 'Subtopic')}:\n{e.get('reason', '')}" for e in s_evals if e)
+            s_sources = "\n".join(f"{e.get('source', '')}" for e in s_evals if e)
+            
+            prefix = f"[{a_name}]\n" if len(ranked_assignees) > 1 else ""
+            
+            all_t_scores.append(f"{prefix}{t_scores}")
+            all_t_reasons.append(f"{prefix}{t_reasons}")
+            all_t_sources.append(f"{prefix}{t_sources}")
+            all_s_scores.append(f"{prefix}{s_scores}")
+            all_s_reasons.append(f"{prefix}{s_reasons}")
+            all_s_sources.append(f"{prefix}{s_sources}")
+            
+        row_vals = [
+            pat_num, 
+            pat_title, 
+            "\n\n".join(assignee_names),
+            "\n\n---\n\n".join(all_t_scores),
+            "\n\n---\n\n".join(all_t_reasons),
+            "\n\n---\n\n".join(all_t_sources),
+            "\n\n---\n\n".join(all_s_scores),
+            "\n\n---\n\n".join(all_s_reasons),
+            "\n\n---\n\n".join(all_s_sources)
+        ]
+        
+        for col_idx, val in enumerate(row_vals, start=1):
+            c = ws_ranked.cell(row=curr_row, column=col_idx, value=val)
+            c.font = body_font
+            c.border = block_close_border
+            c.alignment = align_center_mid if col_idx in (1, 4, 7) else align_left_mid
+            c.fill = block_fill
+            
+        curr_row += 1
+
+    # ---------------------------------------------------------
     # ADJUST COLUMN WIDTHS AUTOMATICALLY FOR ALL SHEETS
     # ---------------------------------------------------------
     for ws in wb.worksheets:
