@@ -64,7 +64,7 @@ function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?
   );
 }
 
-function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: boolean; onSelect: () => void; sortBy: 'topic' | 'subtopic' | 'kyp' }) {
+function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }: { p: any; isSelected: boolean; onSelect: () => void; sortBy: 'topic' | 'subtopic'; isChecked: boolean; onToggleCheck: (id: string) => void; }) {
   const isPending = p.status === 'pending';
   const isFailed = p.status === 'failed';
 
@@ -83,22 +83,33 @@ function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: bo
 
   const canSelect = !isPending && !isFailed;
   
-  let maxT = 0;
-  let maxS = 0;
-  if (p.ranked_forward_assignees) {
-    p.ranked_forward_assignees.forEach((ra: any) => {
-      if ((ra.topic_avg || 0) > maxT) maxT = ra.topic_avg || 0;
-      if ((ra.subtopic_avg || 0) > maxS) maxS = ra.subtopic_avg || 0;
-    });
+  let mergedScore = 0;
+  if (p.ranked_forward_assignees && p.ranked_forward_assignees.length > 0) {
+    const sumAvg = p.ranked_forward_assignees.reduce((acc: number, ra: any) => {
+      return acc + (sortBy === 'topic' ? (ra.topic_avg || 0) : (ra.subtopic_avg || 0));
+    }, 0);
+    const avgScore = sumAvg / p.ranked_forward_assignees.length;
+    const kyp = p.kyp_score != null ? p.kyp_score : 0;
+    mergedScore = (kyp * 0.5) + (avgScore * 10 * 0.5);
   }
 
   return (
     <div className={`flex flex-col border-b border-slate-700/50 ${isSelected ? 'bg-slate-800/50' : ''}`}>
       {/* Main Row */}
       <div
-        className={`grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
+        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
         onClick={() => canSelect && onSelect()}
       >
+        {/* Checkbox Column */}
+        <div className="px-3 py-4 flex items-center justify-center border-r border-slate-700/30" onClick={(e) => e.stopPropagation()}>
+          <input 
+            type="checkbox" 
+            checked={isChecked} 
+            onChange={() => onToggleCheck(p.patent_number)} 
+            disabled={!canSelect}
+            className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500" 
+          />
+        </div>
         {/* Patent Number */}
         <div className="px-4 py-4 font-medium text-indigo-300 truncate">
           {p.patent_number}
@@ -224,17 +235,10 @@ function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: bo
         <div className="px-4 py-4 flex justify-center">
           {isPending || isFailed ? (
             <span className="text-slate-600">-</span>
-          ) : sortBy === 'kyp' ? (
-            <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner">
-               <span className={`text-xl font-bold leading-none ${p.kyp_score != null ? 'text-amber-400' : 'text-slate-500'}`}>
-                  {p.kyp_score != null ? p.kyp_score : '-'}
-               </span>
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">KYP Score</span>
-            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner">
-               <span className={`text-xl font-bold leading-none ${(sortBy === 'topic' ? maxT : maxS) >= 5 ? 'text-amber-400' : 'text-slate-400'}`}>
-                  {(sortBy === 'topic' ? maxT : maxS).toFixed(1)}
+            <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner w-full max-w-[90px]">
+               <span className={`text-xl font-bold leading-none ${mergedScore >= 50 ? 'text-amber-400' : 'text-slate-400'}`}>
+                  {mergedScore.toFixed(1)}
                </span>
                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Score</span>
             </div>
@@ -247,34 +251,22 @@ function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: bo
 }
 
 
-export default function ResultsTable({ patents }: { patents: any[] }) {
+export default function ResultsTable({ patents, selectedForExport, onToggleExport, onSelectAll, sortBy, onSortByChange }: { patents: any[]; selectedForExport: Set<string>; onToggleExport: (id: string) => void; onSelectAll: () => void; sortBy: 'topic' | 'subtopic'; onSortByChange: (val: 'topic' | 'subtopic') => void; }) {
   const [selectedPatent, setSelectedPatent] = useState<any | null>(null);
-  const [sortBy, setSortBy] = useState<'subtopic' | 'topic' | 'kyp'>('subtopic');
   
   const sortedPatents = useMemo(() => {
     return [...patents].sort((a, b) => {
-      const getScores = (p: any) => {
-         let mT = 0; let mS = 0;
-         if (!p.ranked_forward_assignees) return { t: 0, s: 0 };
-         p.ranked_forward_assignees.forEach((ra: any) => {
-           if ((ra.topic_avg || 0) > mT) mT = ra.topic_avg || 0;
-           if ((ra.subtopic_avg || 0) > mS) mS = ra.subtopic_avg || 0;
-         });
-         return { t: mT, s: mS };
+      const getMergedScore = (p: any) => {
+        if (!p.ranked_forward_assignees || p.ranked_forward_assignees.length === 0) return 0;
+        const sumAvg = p.ranked_forward_assignees.reduce((acc: number, ra: any) => {
+          return acc + (sortBy === 'topic' ? (ra.topic_avg || 0) : (ra.subtopic_avg || 0));
+        }, 0);
+        const avgScore = sumAvg / p.ranked_forward_assignees.length;
+        const kyp = p.kyp_score != null ? p.kyp_score : 0;
+        return (kyp * 0.5) + (avgScore * 10 * 0.5);
       };
       
-      const scoresA = getScores(a);
-      const scoresB = getScores(b);
-      
-      if (sortBy === 'kyp') {
-        const kypA = a.kyp_score != null ? a.kyp_score : -1;
-        const kypB = b.kyp_score != null ? b.kyp_score : -1;
-        return kypB - kypA;
-      } else if (sortBy === 'topic') {
-        return scoresB.t - scoresA.t;
-      } else {
-        return scoresB.s - scoresA.s;
-      }
+      return getMergedScore(b) - getMergedScore(a);
     });
   }, [patents, sortBy]);
 
@@ -314,7 +306,15 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
     <>
       <div className="w-full bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
         {/* Sticky Header */}
-        <div className="grid grid-cols-[160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700 items-center">
+        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700 items-center">
+          <div className="px-3 py-3 flex items-center justify-center border-r border-slate-700/30">
+            <input 
+              type="checkbox" 
+              checked={patents.length > 0 && selectedForExport.size === patents.filter((p: any) => p.status !== 'pending' && p.status !== 'failed').length} 
+              onChange={onSelectAll} 
+              className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500" 
+            />
+          </div>
           <div className="px-4 py-3 font-semibold">Patent No</div>
           <div className="px-4 py-3 font-semibold">Title & Assignee</div>
           <div className="px-4 py-3 font-semibold">Technology</div>
@@ -327,11 +327,10 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
               <select
                 className="bg-transparent text-[10px] text-amber-300 font-bold outline-none border-none cursor-pointer text-center"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'topic' | 'subtopic' | 'kyp')}
+                onChange={(e) => onSortByChange(e.target.value as 'topic' | 'subtopic')}
               >
                 <option className="bg-slate-800 text-amber-300" value="topic">Topic</option>
                 <option className="bg-slate-800 text-amber-300" value="subtopic">Subtopic</option>
-                <option className="bg-slate-800 text-amber-300" value="kyp">KYP Score</option>
               </select>
             </div>
           </div>
@@ -348,6 +347,8 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
                 isSelected={selectedPatent?.patent_number === p.patent_number}
                 onSelect={() => setSelectedPatent(p)}
                 sortBy={sortBy}
+                isChecked={selectedForExport.has(p.patent_number)}
+                onToggleCheck={onToggleExport}
               />
             )}
           />

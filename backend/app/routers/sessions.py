@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session as DBSession
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
 import uuid
 import pandas as pd
 import io
@@ -135,13 +136,42 @@ def get_session_status(session_id: str, db: DBSession = Depends(get_db), current
 def export_session_excel(
     session_id: str, 
     translate: bool = False,
+    sort_by: Optional[str] = "subtopic",
     db: DBSession = Depends(get_db), 
     current_user_id: str = Depends(get_current_user_id)
 ):
     session_data = get_session(session_id, db, current_user_id)
-    excel_bytes = generate_session_excel(session_data, db=db, translate=translate)
+    excel_bytes = generate_session_excel(session_data, db=db, translate=translate, sort_by=sort_by)
     safe_name = "".join(c for c in session_data.get("name", "session") if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
     filename = f"{safe_name}_{session_id[:8]}.xlsx"
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+class CustomExportRequest(BaseModel):
+    patent_ids: List[str]
+    sort_by: str = "subtopic"
+
+@router.post("/{session_id}/export_custom")
+def export_session_excel_custom(
+    session_id: str, 
+    payload: CustomExportRequest,
+    translate: bool = False,
+    db: DBSession = Depends(get_db), 
+    current_user_id: str = Depends(get_current_user_id)
+):
+    session_data = get_session(session_id, db, current_user_id)
+    excel_bytes = generate_session_excel(
+        session_data, 
+        db=db, 
+        translate=translate, 
+        patent_ids=payload.patent_ids, 
+        sort_by=payload.sort_by
+    )
+    safe_name = "".join(c for c in session_data.get("name", "session") if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
+    filename = f"{safe_name}_{session_id[:8]}_custom.xlsx"
     return StreamingResponse(
         io.BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

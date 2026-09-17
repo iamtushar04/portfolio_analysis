@@ -373,7 +373,7 @@ from openpyxl.utils import get_column_letter
 from .translator import batch_translate_names
 
 
-def generate_session_excel(session_data: dict, db=None, translate: bool = False) -> bytes:
+def generate_session_excel(session_data: dict, db=None, translate: bool = False, patent_ids: list = None, sort_by: str = None) -> bytes:
     """
     Generates a professionally formatted, multi-sheet Excel file (.xlsx)
     containing complete portfolio analysis information for a session.
@@ -388,6 +388,31 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
     wb.remove(wb.active)
 
     patents = session_data.get("patents", [])
+
+    if patent_ids:
+        patents = [p for p in patents if p.get("patent_number") in patent_ids]
+
+    if sort_by in ("topic", "subtopic"):
+        for p in patents:
+            kyp = 0
+            if "kyp_score" in p and p.get("kyp_score") is not None:
+                try:
+                    kyp = float(p.get("kyp_score", 0))
+                except (ValueError, TypeError):
+                    pass
+                    
+            assignees = p.get("ranked_forward_assignees") or []
+            avg_score = 0
+            if assignees:
+                if sort_by == "topic":
+                    avg_score = sum(ra.get("topic_avg", 0) for ra in assignees) / len(assignees)
+                else:
+                    avg_score = sum(ra.get("subtopic_avg", 0) for ra in assignees) / len(assignees)
+                            
+            merged_score = (kyp * 0.5) + (avg_score * 10 * 0.5)
+            p["_merged_score"] = merged_score
+            
+        patents.sort(key=lambda x: x.get("_merged_score", 0), reverse=True)
 
     if translate and db:
         # --- Step 1: Aggregate ALL unique names from every field ---
@@ -494,8 +519,6 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
     align_center_mid = Alignment(horizontal="center", vertical="center", wrap_text=True)
     align_left_mid = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-    patents = session_data.get("patents", [])
-
     def get_assignees_str(assignees, fallback_key_obj, sep=", "):
         if isinstance(assignees, list):
             return sep.join(assignees) if assignees else fallback_key_obj.get("assignee", "Unknown")
@@ -560,7 +583,13 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
     ws_summary.cell(row=start_row - 1, column=1, value="Patents Overview").font = Font(
         name="Calibri", size=13, bold=True, color="1F4E78")
 
-    sum_headers = ["Patent Number", "Title", "Assignee(s)", "Status", "Standard Info"]
+    accuracy_label = "Final Accuracy"
+    if sort_by == "topic":
+        accuracy_label = "Final Accuracy (Topic)"
+    elif sort_by == "subtopic":
+        accuracy_label = "Final Accuracy (Subtopic)"
+
+    sum_headers = ["Patent Number", "Title", "Assignee(s)", "Status", "Standard Info", accuracy_label]
     for col_num, h_text in enumerate(sum_headers, 1):
         cell = ws_summary.cell(row=start_row, column=col_num, value=h_text)
         cell.font = header_font
@@ -571,13 +600,16 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
 
     for row_idx, p in enumerate(patents, start=start_row + 1):
         assignees_str = get_assignees_str(p.get("assignees") or [], p)
+        merged = p.get("_merged_score")
+        final_accuracy = f"{merged:.1f}" if merged is not None else "N/A"
 
         row_cells = [
             ws_summary.cell(row=row_idx, column=1, value=p.get("patent_number", "")),
             ws_summary.cell(row=row_idx, column=2, value=p.get("title", "")),
             ws_summary.cell(row=row_idx, column=3, value=assignees_str),
             ws_summary.cell(row=row_idx, column=4, value=p.get("status", "")),
-            ws_summary.cell(row=row_idx, column=5, value=p.get("standard", "No Standard Found"))
+            ws_summary.cell(row=row_idx, column=5, value=p.get("standard", "No Standard Found")),
+            ws_summary.cell(row=row_idx, column=6, value=final_accuracy)
         ]
 
         is_even = (row_idx - start_row) % 2 == 0
@@ -589,6 +621,7 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
                 c.fill = alt_row_fill
         row_cells[0].alignment = align_center_top
         row_cells[3].alignment = align_center_top
+        row_cells[5].alignment = align_center_top
 
     # ---------------------------------------------------------
     # 2. PATENT DETAILS SHEET  (unchanged — one row per patent)
