@@ -94,10 +94,10 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
   }
 
   return (
-    <div className={`flex flex-col border-b border-slate-200/50 ${isSelected ? 'bg-slate-100/50' : ''}`}>
+    <div className={`flex flex-col border-b border-slate-200/50 ${isSelected ? 'bg-slate-100' : ''}`}>
       {/* Main Row */}
       <div
-        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
+        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-100' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
         onClick={() => canSelect && onSelect()}
       >
         {/* Checkbox Column */}

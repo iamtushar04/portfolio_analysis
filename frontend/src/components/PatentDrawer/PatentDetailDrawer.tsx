@@ -142,18 +142,18 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
   const isProcessing = patent && (patent.status === 'processing' || patent.status === 'pending');
 
   // Filtering logic
-  const filteredFwdComp = useMemo(() => (patent?.forward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase())), [compSearch]);
-  const filteredBwdComp = useMemo(() => (patent?.backward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase())), [compSearch]);
+  const filteredFwdComp = (patent?.forward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase()));
+  const filteredBwdComp = (patent?.backward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase()));
 
-  const filteredFwdCit = useMemo(() => (patent?.forward_citations || []).filter((c: any) =>
+  const filteredFwdCit = (patent?.forward_citations || []).filter((c: any) =>
     c.publication_number?.toLowerCase().includes(citSearch.toLowerCase()) ||
     c.assignee?.toLowerCase().includes(citSearch.toLowerCase())
-  ), [citSearch]);
+  );
 
-  const filteredBwdCit = useMemo(() => (patent?.backward_citations || []).filter((c: any) =>
+  const filteredBwdCit = (patent?.backward_citations || []).filter((c: any) =>
     c.publication_number?.toLowerCase().includes(citSearch.toLowerCase()) ||
     c.assignee?.toLowerCase().includes(citSearch.toLowerCase())
-  ), [citSearch]);
+  );
 
   return (
     <>
@@ -258,7 +258,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                 <div className="pl-5 pr-4 pt-4 pb-4">
                   <h3 className="text-[11px] font-bold text-blue-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <span className=" bg-blue-500 inline-block" />
-                    Taxonomy Classification
+                    Technology Classification
                   </h3>
                   {isProcessing ? (
                     <div className="space-y-3 animate-pulse pt-2 px-2">
@@ -406,7 +406,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                          const activeScore = rankBy === 'topic' ? (assignee.topic_avg || 0) : (assignee.subtopic_avg || 0);
                          
                          return (
-                          <div key={`ranked-${i}`} className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
+                          <div key={`ranked-${i}`} className="bg-slate-100/40 border border-slate-700/50 rounded-lg p-3">
                             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700/30">
                               <span className="text-sm font-bold text-slate-200">{assignee.name}</span>
                               <div className="flex gap-2 items-center">
@@ -462,11 +462,11 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                 <div className="pl-5 pr-4 pt-4 pb-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[11px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-2">
-                      <span className="w-4 h-px bg-purple-500/60 inline-block" />
+                      <span className="bg-purple-600 inline-block" />
                       KYP Rank & Classifications
                     </h3>
                     {patent.kyp_score != null && (
-                      <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
+                      <span className="px-2 py-0.5 rounded-full bg-purple-600 text-purple-100 text-[12px] font-bold border border-purple-500/30">
                         Score: {patent.kyp_score}/100
                       </span>
                     )}
@@ -482,8 +482,8 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                   ) : (
                     <div className="space-y-4">
                       {patent.kyp_score_data && (
-                        <div className="bg-slate-800/40 rounded-lg border border-slate-700/50 p-3">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">Scoring Parameters</div>
+                        <div className="bg-slate-800 rounded-lg border border-slate-700/50 p-3">
+                          <div className="text-[10px] font-bold text-slate-200 uppercase mb-2">Scoring Parameters</div>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {Object.entries(patent.kyp_score_data).map(([key, value]) => {
                               if (typeof value === 'object' || key === 'classifications' || key === 'rank' || key === 'title') return null;
@@ -500,10 +500,10 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                       
                       {patent.kyp_classifications && patent.kyp_classifications.length > 0 && (
                         <div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">Matched Classifications</div>
+                          <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Matched Classifications</div>
                           <div className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
                             {patent.kyp_classifications.map((c: any, idx: number) => (
-                              <div key={idx} className="bg-slate-800/30 border border-slate-700/30 rounded p-2 flex gap-2 items-start">
+                              <div key={idx} className="bg-slate-800 border border-slate-700/30 rounded p-2 flex gap-2 items-start">
                                 <span className="bg-purple-500/10 text-purple-300 border border-purple-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
                                   {c.code}
                                 </span>

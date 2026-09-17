@@ -8,29 +8,45 @@ import { config } from '../config';
  import { GetSessions } from '@/services/GetSessions';
 import SessionCard from '@/components/ui/SessionCard';
 import { ClipLoader } from 'react-spinners';
+import { useQuery } from '@tanstack/react-query';
+import { CreateSession } from '@/services/CreateSession';
+import { DeleteSession } from '@/services/DeleteSession';
 export default function Home() {
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<{id: string, name: string} | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState("");
   const router = useRouter();
+  const {
+  data,
+  isLoading,
+  isError,
+  error,
+  refetch
+} = useQuery({
+  queryKey: ["sessions"],
+  queryFn: GetSessions,
+});
 
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        setLoading(true)
-      const response = await GetSessions();
-      setSessions(response.data)
-      } catch (error) {
-        console.log(error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchSessions();
-  }, []);
+const sessions = data?.data || [];
+
+
+  // useEffect(() => {
+  //   const fetchSessions = async () => {
+  //     try {
+  //       setLoading(true)
+  //     const response = await GetSessions();
+  //     setSessions(response)
+  //     } catch (error) {
+  //       console.log(error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   }
+  //   fetchSessions();
+  // }, []);
+
+  
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -51,9 +67,10 @@ export default function Home() {
     const loadingToast = toast.loading('Creating session...');
     
     try {
-      const res = await axios.post(`${config.API_URL}/api/sessions/?name=${encodeURIComponent(newSessionName.trim())}`, {}, getHeaders());
+      const res = await CreateSession(newSessionName.trim());
       if (res.data && res.data.id) {
         toast.success('Session created successfully!', { id: loadingToast });
+        refetch();
         router.push(`/sessions/${res.data.id}`);
       } else {
         toast.error('Session created but ID missing', { id: loadingToast });
@@ -77,12 +94,12 @@ export default function Home() {
     const { id } = sessionToDelete;
     setSessionToDelete(null); // Close modal instantly
 
-    // Optimistic UI update: instantly remove from screen
-    setSessions(prev => prev.filter((s: any) => s.id !== id));
-    
+    sessions.filter((s: any) => s.id !== id);
+
     try {
       await axios.delete(`${config.API_URL}/api/sessions/${id}`, getHeaders());
       toast.success('Session deleted');
+      refetch();
     } catch (error: any) {
       console.error("Failed to delete session", error);
       toast.error("Failed to delete session");
@@ -226,7 +243,7 @@ export default function Home() {
 
 
     {/* Loader */}
-    {loading ? (
+    {isLoading ? (
 
       <div className="flex justify-center py-32">
 
@@ -251,7 +268,7 @@ gap-7
 >
 
 {
-sessions.map((s:any)=>(
+data.map((s:any)=>(
 
 <SessionCard
     key={s.id}
@@ -267,7 +284,7 @@ sessions.map((s:any)=>(
 
 
 
-        {sessions.length === 0 && (
+        {data.length === 0 && (
   <section className="flex items-center justify-center mt-5 min-h-[30vh]">
     <div
       className="
