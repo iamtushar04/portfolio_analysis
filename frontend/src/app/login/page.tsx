@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import axios from "axios";
-import OtpInput from "../../components/OtpInput";
+import OtpInput from "../../components/Otp/OtpInput";
 import { config } from "../../config";
 
 // Using a basic Spinner component directly inline

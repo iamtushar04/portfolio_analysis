@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Users, ExternalLink, Folder, FolderOpen, FileText, ChevronRight, ChevronDown, Network, Ghost, Search } from 'lucide-react';
 
 function EmptyState({ title }: { title: string }) {
@@ -56,18 +56,18 @@ function TaxonomyNode({ name, childrenObj, level = 0 }: { name: string, children
         style={{ paddingLeft: `${level * 16 + 8}px` }}
       >
         {hasChildren ? (
-          isOpen ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />
+          isOpen ? <ChevronDown size={14} className="text-slate-700" /> : <ChevronRight size={14} className="text-slate-400" />
         ) : (
           <div className="w-3.5" />
         )}
 
         {hasChildren ? (
-          isOpen ? <FolderOpen size={14} className="text-amber-400" /> : <Folder size={14} className="text-amber-400" />
+          isOpen ? <FolderOpen size={14} className="text-amber-700" /> : <Folder size={14} className="text-amber-400" />
         ) : (
-          <FileText size={14} className="text-blue-400" />
+          <FileText size={14} className="text-blue-700" />
         )}
 
-        <span className={`text-sm ${level === 0 ? 'text-slate-200 font-semibold' : 'text-slate-300'}`}>
+        <span className={`text-sm ${level === 0 ? 'text-slate-600 font-semibold' : 'text-slate-600'}`}>
           {name}
         </span>
       </div>
@@ -85,7 +85,7 @@ function TaxonomyNode({ name, childrenObj, level = 0 }: { name: string, children
 
 function TaxonomyTree({ taxonomies }: { taxonomies: any[] }) {
   if (!taxonomies || taxonomies.length === 0) {
-    return <p className="text-sm text-slate-500 italic px-2">No taxonomy data available.</p>;
+    return <p className="text-sm text-slate-700 italic px-2">No taxonomy data available.</p>;
   }
 
   // Build tree from flat array
@@ -141,31 +141,31 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
   const isProcessing = patent && (patent.status === 'processing' || patent.status === 'pending');
 
   // Filtering logic
-  const filteredFwdComp = (patent?.forward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase()));
-  const filteredBwdComp = (patent?.backward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase()));
+  const filteredFwdComp = useMemo(() => (patent?.forward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase())), [compSearch]);
+  const filteredBwdComp = useMemo(() => (patent?.backward_competitors || []).filter((c: string) => c.toLowerCase().includes(compSearch.toLowerCase())), [compSearch]);
 
-  const filteredFwdCit = (patent?.forward_citations || []).filter((c: any) =>
+  const filteredFwdCit = useMemo(() => (patent?.forward_citations || []).filter((c: any) =>
     c.publication_number?.toLowerCase().includes(citSearch.toLowerCase()) ||
     c.assignee?.toLowerCase().includes(citSearch.toLowerCase())
-  );
+  ), [citSearch]);
 
-  const filteredBwdCit = (patent?.backward_citations || []).filter((c: any) =>
+  const filteredBwdCit = useMemo(() => (patent?.backward_citations || []).filter((c: any) =>
     c.publication_number?.toLowerCase().includes(citSearch.toLowerCase()) ||
     c.assignee?.toLowerCase().includes(citSearch.toLowerCase())
-  );
+  ), [citSearch]);
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 z-40 bg-black/10 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
 
       {/* Drawer Panel */}
       <div
         className={`fixed top-0 right-0 h-full z-50 w-[600px] max-w-[95vw] flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
-        style={{ background: 'linear-gradient(160deg, rgba(15,23,42,0.98) 0%, rgba(23,30,50,0.99) 100%)', borderLeft: '1px solid rgba(99,102,241,0.15)', backdropFilter: 'blur(24px)' }}
+        style={{ background: 'white', borderLeft: '1px solid rgba(99,102,241,0.15)', backdropFilter: 'blur(24px)' }}
       >
         {patent && (
           <>
@@ -173,7 +173,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
             <div className="flex items-start justify-between p-6 border-b border-slate-700/60 shrink-0">
               <div className="flex flex-col gap-1 pr-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                  <span className="text-xs font-bold text-indigo-400 bg-slate-100 px-2 py-0.5 rounded border border-indigo-500/20">
                     {patent.patent_number}
                   </span>
                   {patent.standard && (
@@ -182,19 +182,19 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                         href={patent.standard_links}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1 hover:bg-amber-500/20 transition-colors"
+                        className="text-xs text-slate-700 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1 hover:bg-amber-500/20 transition-colors"
                         onClick={e => e.stopPropagation()}
                       >
                         {patent.standard} <ExternalLink size={9} />
                       </a>
                     ) : (
-                      <span className="text-xs text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                      <span className="text-xs text-amber-300 bg-amber-500 px-2 py-0.5 rounded border border-amber-500/20">
                         {patent.standard}
                       </span>
                     )
                   )}
                 </div>
-                <h2 className="text-base font-bold text-white leading-snug mt-1">
+                <h2 className="text-base font-bold text-slate-700 leading-snug mt-1">
                   {patent.title || 'Untitled Patent'}
                 </h2>
                 <AssigneeChip assignees={patent.assignees} fallback={patent.assignee} />
@@ -208,17 +208,17 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
             </div>
 
             {/* Stats Bar */}
-            <div className="flex items-center gap-6 px-6 py-3 bg-slate-800/30 border-b border-slate-700/40 shrink-0">
+            <div className="flex items-center gap-6 px-6 py-3 bg-slate-100 border-b border-slate-700/40 shrink-0">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.6)]" />
-                <span className="text-xs text-slate-400">Forward Citations:</span>
-                <span className="text-sm font-bold text-emerald-400">{patent.forward_citations?.length || 0}</span>
+                <span className="text-xs text-slate-600">Forward Citations:</span>
+                <span className="text-sm font-bold text-emerald-600">{patent.forward_citations?.length || 0}</span>
               </div>
-              <div className="w-px h-4 bg-slate-700" />
+              <div className="w-px h-4 bg-slate-200" />
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-rose-400 shadow-[0_0_5px_rgba(251,113,133,0.6)]" />
-                <span className="text-xs text-slate-400">Backward Citations:</span>
-                <span className="text-sm font-bold text-rose-400">{patent.backward_citations?.length || 0}</span>
+                <span className="text-xs text-slate-600">Backward Citations:</span>
+                <span className="text-sm font-bold text-rose-600">{patent.backward_citations?.length || 0}</span>
               </div>
             </div>
 
@@ -229,11 +229,11 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
               <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-600" />
                 <div className="pl-5 pr-4 pt-4 pb-4">
-                  <h3 className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-4 h-px bg-indigo-500/60 inline-block" />
+                  <h3 className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="bg-indigo-500 inline-block" />
                     Abstract
                   </h3>
-                  <div className="max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                  <div className="max-h-[220px] overflow-y-auto custom-scrollbar pl-2">
                     {isProcessing ? (
                       <div className="space-y-2 animate-pulse">
                         <div className="h-3 bg-slate-700/50 rounded w-full"></div>
@@ -241,7 +241,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                         <div className="h-3 bg-slate-700/50 rounded w-4/6"></div>
                       </div>
                     ) : patent.abstract ? (
-                      <p className="text-sm text-slate-300 leading-relaxed">
+                      <p className="text-sm text-slate-700 leading-relaxed">
                         {patent.abstract}
                       </p>
                     ) : (
@@ -255,8 +255,8 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
               <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-cyan-600" />
                 <div className="pl-5 pr-4 pt-4 pb-4">
-                  <h3 className="text-[11px] font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-4 h-px bg-blue-500/60 inline-block" />
+                  <h3 className="text-[11px] font-bold text-blue-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className=" bg-blue-500 inline-block" />
                     Taxonomy Classification
                   </h3>
                   {isProcessing ? (
@@ -274,18 +274,18 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
 
               {/* Competitors Card */}
               <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-teal-600" />
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-white" />
                 <div className="pl-5 pr-4 pt-4 pb-4">
-                  <h3 className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest mb-4 flex items-center justify-between">
+                  <h3 className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest mb-4 flex items-center justify-between">
                     <span className="flex items-center gap-2">
-                      <span className="w-4 h-px bg-emerald-500/60 inline-block" />
+                      <span className="bg-emerald-500 inline-block" />
                       Competitors
                     </span>
                     <span className="flex gap-2">
-                      <button onClick={() => scrollToRef(fwdCompRef)} className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-bold border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors cursor-pointer">
+                      <button onClick={() => scrollToRef(fwdCompRef)} className="px-2 py-0.5 rounded-full bg-emerald-500 text-green-100 text-[12px] font-bold border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors cursor-pointer">
                         ↑ {patent.forward_competitors?.length || 0} Fwd
                       </button>
-                      <button onClick={() => scrollToRef(bwdCompRef)} className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[10px] font-bold border border-rose-500/20 hover:bg-rose-500/25 transition-colors cursor-pointer">
+                      <button onClick={() => scrollToRef(bwdCompRef)} className="px-2 py-0.5 rounded-full bg-rose-500/15 text-red-500 text-[12px] font-bold border border-rose-500/20 hover:bg-rose-500/25 transition-colors cursor-pointer">
                         ↓ {patent.backward_competitors?.length || 0} Bwd
                       </button>
                     </span>
@@ -300,12 +300,12 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                     <EmptyState title="No Competitors Found" />
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 mb-4 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2.5 py-1.5 focus-within:border-emerald-500/50 transition-colors">
-                        <Search size={12} className="text-slate-400" />
+                      <div className="flex items-center gap-2 mb-4 bg-slate-200 border border-slate-700/50 rounded-lg px-2.5 py-1.5 focus-within:border-emerald-500/50 transition-colors">
+                        <Search size={12} className="text-slate-700" />
                         <input
                           type="text"
                           placeholder="Search competitors..."
-                          className="bg-transparent border-none outline-none text-xs text-slate-300 w-full placeholder:text-slate-600"
+                          className="bg-transparent border-none outline-none text-xs text-slate-700 w-full placeholder:text-slate-600"
                           value={compSearch}
                           onChange={e => setCompSearch(e.target.value)}
                         />
@@ -360,14 +360,14 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                 <div className="pl-5 pr-4 pt-4 pb-4">
                   <h3 className="text-[11px] font-bold text-sky-400 uppercase tracking-widest mb-4 flex items-center justify-between">
                     <span className="flex items-center gap-2">
-                      <span className="w-4 h-px bg-sky-500/60 inline-block" />
+                      <span className="bg-sky-700 inline-block" />
                       Citations
                     </span>
                     <span className="flex gap-2">
-                      <button onClick={() => scrollToRef(fwdCitRef)} className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-bold border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors cursor-pointer">
+                      <button onClick={() => scrollToRef(fwdCitRef)} className="px-2 py-0.5 rounded-full bg-emerald-600 text-emerald-100 text-[12px] font-bold border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors cursor-pointer">
                         ↑ {patent.forward_citations?.length || 0} Fwd
                       </button>
-                      <button onClick={() => scrollToRef(bwdCitRef)} className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[10px] font-bold border border-rose-500/20 hover:bg-rose-500/25 transition-colors cursor-pointer">
+                      <button onClick={() => scrollToRef(bwdCitRef)} className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 text-[12px] font-bold border border-rose-500/20 hover:bg-rose-500/25 transition-colors cursor-pointer">
                         ↓ {patent.backward_citations?.length || 0} Bwd
                       </button>
                     </span>
@@ -384,7 +384,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                     <EmptyState title="No Citations Found" />
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 mb-4 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2.5 py-1.5 focus-within:border-sky-500/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-4 bg-slate-300 border border-slate-700/50 rounded-lg px-2.5 py-1.5 focus-within:border-sky-500/50 transition-colors">
                         <Search size={12} className="text-slate-400" />
                         <input
                           type="text"
@@ -399,14 +399,14 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                         {/* Forward Citations */}
                         {filteredFwdCit.length > 0 && (
                           <>
-                            <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider py-1.5 sticky top-0 bg-slate-900/90 backdrop-blur-sm z-10">
+                            <div className="text-[12px] px-2 font-bold text-emerald-300 uppercase tracking-wider py-5 sticky top-0 bg-slate-800 backdrop-blur-sm z-10">
                               Forward Citations
                             </div>
                             {filteredFwdCit.map((c: any, i: number) => (
                               <div key={`fwd-${i}`} className="flex items-start gap-2.5 py-2 border-b border-slate-700/30 last:border-0 group">
                                 <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shadow-[0_0_4px_rgba(52,211,153,0.5)]" />
                                 <div className="flex flex-col min-w-0">
-                                  <span className="text-xs font-semibold text-slate-200 group-hover:text-emerald-300 transition-colors">
+                                  <span className="text-xs font-semibold text-slate-600 hover:text-emerald-600 transition-colors">
                                     {typeof c === 'string' ? c : c.patent_number || c.publication_number}
                                   </span>
                                   {typeof c === 'object' && (
@@ -420,14 +420,14 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                         {/* Backward Citations */}
                         {filteredBwdCit.length > 0 && (
                           <>
-                            <div ref={bwdCitRef} className="text-[10px] font-bold text-rose-500 uppercase tracking-wider py-1.5 sticky top-0 bg-slate-900/90 backdrop-blur-sm mt-2 z-10">
+                            <div ref={bwdCitRef} className="text-[12px] px-2 py-5 font-bold text-rose-500 uppercase tracking-wider py-1.5 sticky top-0 bg-slate-800 backdrop-blur-sm mt-2 z-10">
                               Backward Citations
                             </div>
                             {filteredBwdCit.map((c: any, i: number) => (
                               <div key={`bwd-${i}`} className="flex items-start gap-2.5 py-2 border-b border-slate-700/30 last:border-0 group">
                                 <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shadow-[0_0_4px_rgba(251,113,133,0.5)]" />
                                 <div className="flex flex-col min-w-0">
-                                  <span className="text-xs font-semibold text-slate-200 group-hover:text-rose-300 transition-colors">
+                                  <span className="text-xs font-semibold text-slate-600 hover:text-rose-600 transition-colors">
                                     {typeof c === 'string' ? c : c.patent_number || c.publication_number}
                                   </span>
                                   {typeof c === 'object' && (

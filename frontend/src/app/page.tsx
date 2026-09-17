@@ -5,7 +5,7 @@ import { Plus, FolderOpen, ArrowRight, Trash2, LogOut, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { config } from '../config';
- import { GetSessions } from '@/apis/GetSessions';
+ import { GetSessions } from '@/services/GetSessions';
 import SessionCard from '@/components/ui/SessionCard';
 import { ClipLoader } from 'react-spinners';
 export default function Home() {
@@ -113,18 +113,15 @@ export default function Home() {
       
       text-slate-800
       
-      bg-gradient-to-r
-      from-red-200
-      to-purple-300
+      bg-#b90000
       
       border
       border-slate-300
       
       shadow-sm
       
-      hover:from-red-300
-      hover:to-purple-400
-      
+      hover:bg-slate-100
+      active:bg-slate-200
       hover:shadow-md
       
       cursor-pointer
@@ -141,7 +138,7 @@ export default function Home() {
 
 
     {/* Header */}
-    <header className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-12">
+    <header className="flex flex-col md:flex-row justify-between md:items-end gap-6">
 
       <div>
 
@@ -207,10 +204,13 @@ export default function Home() {
         flex items-center justify-center gap-2
         px-3 py-2
         rounded-xl
-        bg-red-500
-        hover:bg-red-600
-        active:bg-red-700
-        shadow-md
+        text-slate-700
+        bg-#b90000
+        border border-slate-200
+        hover:bg-slate-100
+        active:bg-slate-200
+        shadow-sm
+        hover:shadow-md
         transition
         font-semibold
         cursor-pointer"
@@ -241,6 +241,7 @@ export default function Home() {
 
       <div
 className="
+mt-5
 grid
 grid-cols-1
 md:grid-cols-2
@@ -266,45 +267,51 @@ sessions.map((s:any)=>(
 
 
 
-        {sessions.length===0 && (
+        {sessions.length === 0 && (
+  <section className="flex items-center justify-center mt-5 min-h-[30vh]">
+    <div
+      className="
+        w-full
+        
+        py-24
+        rounded-2xl
 
-          <div
-          className="
-          py-24
-          rounded-2xl
-          bg-gradient-to-b from-white to-green-300
-          border
-          border-slate-800
-          text-center">
+        bg-white
+        border
+        border-slate-200
+        text-center
+      "
+    >
+      <FolderOpen
+        size={55}
+        className="
+          mx-auto
+          text-slate-600
+          mb-5
+        "
+      />
 
+      <h3
+        className="
+          text-xl
+          font-semibold
+          text-slate-500
+        "
+      >
+        No Sessions Yet
+      </h3>
 
-            <FolderOpen
-            size={55}
-            className="
-            mx-auto
-            text-slate-600
-            mb-5"/>
-
-
-            <h3
-            className="
-            text-xl
-            font-semibold">
-              No Sessions Yet
-            </h3>
-
-
-            <p
-            className="
-            text-slate-400
-            mt-2">
-              Create a new session to start analyzing patents.
-            </p>
-
-
-          </div>
-
-        )}
+      <p
+        className="
+          text-slate-400
+          mt-2
+        "
+      >
+        Create a new session to start analyzing patents.
+      </p>
+    </div>
+  </section>
+)}
 
 
       </div>

@@ -1,12 +1,14 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { UploadCloud, ArrowLeft, RefreshCw, Download, Search } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import ResultsTable from '../../../components/ResultsTable';
+import ResultsTable from '../../../components/PatentDetails/ResultsTable';
 import { config } from '../../../config';
 import { BarLoader } from 'react-spinners';
+import { useQuery } from "@tanstack/react-query";
+import { GetSessionById } from "../../../services/GetSessionById";
 const API_BASE = config.API_URL;
 
 export default function SessionDetail() {
@@ -15,8 +17,8 @@ export default function SessionDetail() {
   const params = useParams();
   const sessionId = params?.id as string;
 
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  // const [session, setSession] = useState<any>(null);
+  // const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
@@ -24,37 +26,10 @@ export default function SessionDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const fetchSession = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get(`${API_BASE}/api/sessions/${sessionId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSession(res.data);
-    } catch (error: any) {
-      console.error("Failed to fetch session", error);
-      if (error?.response?.status === 401) {
-        localStorage.removeItem("token");
-        router.push("/login");
-      }
-      setSession(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionId]);
-
-  // Initial fetch when sessionId is available
-  useEffect(() => {
-    fetchSession();
-  }, [fetchSession]);
-
-  // Poll every 3 seconds while processing
-  useEffect(() => {
-    if (session?.status !== 'processing') return;
-    const interval = setInterval(fetchSession, 3000);
-    return () => clearInterval(interval);
-  }, [session?.status, fetchSession]);
+  const { data, isLoading, isError, refetch, error } = useQuery({
+    queryKey: ["session", sessionId],
+    queryFn: () => GetSessionById(sessionId),
+  })
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,7 +49,7 @@ export default function SessionDetail() {
         }
       });
       toast.success("Upload successful! Processing started.", { id: loadingToast });
-      fetchSession();
+      refetch();
     } catch (error: any) {
       toast.error(error.response?.data?.detail || "Upload failed", { id: loadingToast });
     } finally {
@@ -83,7 +58,7 @@ export default function SessionDetail() {
     }
   };
 
-  if (loading) return (
+  if (isLoading) return (
     <main className="min-h-screen flex justify-center items-center bg-white">
       <div className='flex flex-col gap-5'>
       <span><BarLoader color='red'/></span>
@@ -91,19 +66,26 @@ export default function SessionDetail() {
       </div>
     </main>
   );
+  if (isError) {
+    toast.error(error.message)
+  }
 
-  if (!session) return (
+  if (!data) return (
+    <main className='min-h-screen bg-white flex justify-center items-center'>
     <div className="p-20 text-center text-red-400">
       <p className="text-xl font-bold mb-2">Session not found.</p>
       <p className="text-sm text-slate-500 mb-4">Session ID: {sessionId}</p>
-      <button onClick={() => router.push('/')} className="mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm">
-      <ArrowLeft size={15} color='red'/> Back to Sessions
+  
+      <button onClick={() => router.push('/')} className="cursor-pointer flex items-center justify-center  gap-2 mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm">
+      <ArrowLeft size={15} color='red'/> 
+      <span>Back to Sessions</span>
       </button>
     </div>
+    </main>
   );
 
-  const progressPercentage = session.total_patents > 0
-    ? Math.round((session.processed_patents / session.total_patents) * 100)
+  const progressPercentage = data.total_patents > 0
+    ? Math.round((data.processed_patents / data.total_patents) * 100)
     : 0;
 
   const handleExport = (translate: boolean) => {
@@ -122,7 +104,7 @@ export default function SessionDetail() {
       link.href = url;
       // Get filename from content-disposition header if available, otherwise fallback
       const contentDisposition = response.headers['content-disposition'];
-      let filename = `${session?.name || 'session'}_export.xlsx`;
+      let filename = `${data.name || 'session'}_export.xlsx`;
       if (contentDisposition && contentDisposition.indexOf('filename=') !== -1) {
           filename = contentDisposition.split('filename=')[1].replace(/['"]/g, '');
       }
@@ -139,8 +121,8 @@ export default function SessionDetail() {
 
   return (
     <>
-    <header className="bg-red-300 container mx-auto w-full px-4 md:px-8 py-3">
-  <div className="rounded-2xl bg-red-300 shadow-md px-4 py-3">
+    <header className="bg-red-100 container mx-auto w-full px-4 md:px-8 py-3">
+  <div className="rounded-2xl bg-red-100 shadow-md px-4 py-3">
 
     <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
 
@@ -151,11 +133,13 @@ export default function SessionDetail() {
         <button
           onClick={() => router.push("/")}
           className="
-            flex items-center gap-2
+            flex gap-2 justify-center items-center
             text-sm font-medium
             text-slate-700
+            border border-slate-200
             bg-white
-            hover:bg-gray-200
+            hover:bg-slate-100
+            active:bg-slate-200
             transition
             px-3 py-1.5
             rounded-lg
@@ -170,12 +154,12 @@ export default function SessionDetail() {
         {/* Session Info */}
         <div className="flex items-center gap-3">
 
-          <h1 className="text-2xl font-semibold text-gray-700">
-            {session.name}
+          <h1 className="text-2xl font-semibold text-gray-600 bg-white px-2 rounded-xl py-1">
+            {data.name}
           </h1>
 
 
-          {session.status === "processing" && (
+          {data.status === "processing" && (
             <RefreshCw
               size={20}
               className="text-yellow-400 animate-spin"
@@ -189,9 +173,9 @@ export default function SessionDetail() {
               flex items-center gap-2
               px-3 py-1
               rounded-full
-              bg-slate-700/80
+              bg-white
               text-sm
-              text-slate-200
+              text-slate-500
             "
           >
             Status:
@@ -200,15 +184,15 @@ export default function SessionDetail() {
               className={`
                 capitalize
                 ${
-                  session.status === "completed"
+                  data.status === "completed"
                     ? "text-emerald-400"
-                    : session.status === "processing"
+                    : data.status === "processing"
                     ? "text-yellow-400"
                     : "text-red-400"
                 }
               `}
             >
-              {session.status}
+              {data.status}
             </strong>
 
           </span>
@@ -220,15 +204,15 @@ export default function SessionDetail() {
               flex items-center gap-2
               px-3 py-1
               rounded-full
-              bg-slate-700/80
+              bg-white
               text-sm
-              text-slate-200
+              text-slate-500
             "
           >
             Patents:
 
-            <strong className="text-white">
-              {session.total_patents}
+            <strong className="text-slate-500">
+              {data.total_patents}
             </strong>
 
           </span>
@@ -244,14 +228,14 @@ export default function SessionDetail() {
 
 
         {/* Search */}
-        {(session.status === "completed" ||
-          session.status === "processing") && (
+        {(data.status === "completed" ||
+          data.status === "processing") && (
 
           <div
             className="
               flex items-center gap-2
-              bg-slate-950/70
-              border border-slate-700
+              bg-slate-200
+              border border-slate-300
               rounded-xl
               foucs-within:ring-1 focus-within:ring-red-300
               px-3 py-2
@@ -259,7 +243,7 @@ export default function SessionDetail() {
             "
           >
 
-            <Search size={16} className="text-slate-400"/>
+            <Search size={16} className="text-slate-700"/>
 
             <input
               type="text"
@@ -268,9 +252,9 @@ export default function SessionDetail() {
                 bg-transparent
                 outline-none
                 text-sm
-                text-white
+                text-slate-500
                 w-full
-                placeholder:text-slate-300
+                placeholder:text-slate-500
               "
               value={globalSearch}
               onChange={(e)=>setGlobalSearch(e.target.value)}
@@ -283,7 +267,7 @@ export default function SessionDetail() {
 
 
         {/* Upload */}
-        {session.status === "pending" && (
+        {data.status === "pending" && (
 
           <>
             <input
@@ -321,8 +305,8 @@ export default function SessionDetail() {
 
 
         {/* Export */}
-        {(session.status === "completed" ||
-          session.status === "processing") && (
+        {(data.status === "completed" ||
+          data.status === "processing") && (
 
           <button
             onClick={()=>setShowExportModal(true)}
@@ -355,11 +339,11 @@ export default function SessionDetail() {
 </header>
     <main className='w-full bg-white px-4 md:px-8 pt-12 pb-4'>
       {/* Progress Bar */}
-      {session.status === 'processing' && (
-        <div className="mb-8 glass-panel p-6 rounded-xl">
+      {data.status === 'processing' && (
+        <div className="mb-8 bg-white p-6 rounded-xl">
           <div className="flex justify-between text-sm mb-2 font-medium">
             <span className="text-indigo-300">Processing Patents...</span>
-            <span className="text-slate-300">{session.processed_patents} / {session.total_patents} ({progressPercentage}%)</span>
+            <span className="text-slate-300">{data.processed_patents} / {data.total_patents} ({progressPercentage}%)</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
             <div
@@ -371,16 +355,16 @@ export default function SessionDetail() {
       )}
 
       {/* Empty State */}
-      {session.status === 'pending' && (
-        <div className="glass-panel rounded-xl border border-dashed border-slate-600 p-20 text-center">
+      {data.status === 'pending' && (
+        <div className="bg-white rounded-xl border border-dashed border-slate-600 p-20 text-center">
           <UploadCloud size={48} className="mx-auto text-indigo-400 mb-4" />
-          <h3 className="text-xl font-medium text-slate-300 mb-2">Upload your Patent List</h3>
+          <h3 className="text-xl font-medium text-slate-500 mb-2">Upload your Patent List</h3>
           <p className="text-slate-400 max-w-md mx-auto mb-6">
             Upload an Excel (.xlsx) file containing patent numbers in the first column to begin the automated analysis pipeline.
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline"
+            className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline cursor-pointer"
           >
             Click to Browse Files
           </button>
@@ -388,10 +372,10 @@ export default function SessionDetail() {
       )}
 
       {/* Results Table */}
-      {(session.status === 'processing' || session.status === 'completed') && (
+      {(data.status === 'processing' || data.status === 'completed') && (
         <div className="glass-panel rounded-xl overflow-hidden shadow-2xl">
           {(() => {
-            const patentsList = session.patents || [];
+            const patentsList = data.patents || [];
             const filteredPatents = patentsList.filter((p: any) => 
               p.patent_number?.toLowerCase().includes(globalSearch.toLowerCase()) || 
               p.title?.toLowerCase().includes(globalSearch.toLowerCase()) ||
