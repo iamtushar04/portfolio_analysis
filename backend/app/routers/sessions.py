@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session as DBSession
 from typing import List
@@ -39,6 +39,7 @@ def list_sessions(db: DBSession = Depends(get_db), current_user_id: str = Depend
             "id": s.id, 
             "name": s.name, 
             "status": s.status, 
+            "kyp_status": s.kyp_status,
             "total_patents": s.total_patents, 
             "processed_patents": processed_count, 
             "created_at": s.created_at
@@ -64,7 +65,8 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
     # This recovers sessions that were stuck before the atomic counter fix was deployed.
     if (processed_count >= db_session.total_patents
             and db_session.total_patents > 0
-            and db_session.status == "processing"):
+            and db_session.status == "processing"
+            and db_session.kyp_status in ["completed", "error"]):
         db_session.status = "completed"
         db.commit()
     
@@ -72,6 +74,7 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
         "id": db_session.id,
         "name": db_session.name,
         "status": db_session.status,
+        "kyp_status": db_session.kyp_status,
         "total_patents": db_session.total_patents,
         "processed_patents": processed_count,
         "patents": [
@@ -89,11 +92,43 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
                 "forward_competitors": getattr(p, 'forward_competitors', []) or [],
                 "backward_competitors": getattr(p, 'backward_competitors', []) or [],
                 "ranked_forward_assignees": getattr(p, 'ranked_forward_assignees', []) or [],
+                "kyp_score": getattr(p, 'kyp_score', None),
+                "kyp_score_data": getattr(p, 'kyp_score_data', None),
+                "kyp_classifications": getattr(p, 'kyp_classifications', []) or [],
                 "standard": p.standard,
                 "standard_links": p.standard_links,
                 "error_message": p.error_message
             } for p in patents
         ]
+    }
+
+@router.get("/{session_id}/status", response_model=dict)
+def get_session_status(session_id: str, db: DBSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+    db_session = db.query(schemas.Session).filter(
+        schemas.Session.id == session_id,
+        schemas.Session.owner_id == current_user_id
+    ).first()
+    if not db_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Calculate processed count dynamically (we only need the count, so use query.count() for efficiency)
+    processed_count = db.query(schemas.PatentData).filter(
+        schemas.PatentData.session_id == session_id,
+        schemas.PatentData.status.in_(["success", "failed"])
+    ).count()
+
+    if (processed_count >= db_session.total_patents
+            and db_session.total_patents > 0
+            and db_session.status == "processing"
+            and db_session.kyp_status in ["completed", "error"]):
+        db_session.status = "completed"
+        db.commit()
+
+    return {
+        "status": db_session.status,
+        "kyp_status": db_session.kyp_status,
+        "total_patents": db_session.total_patents,
+        "processed_patents": processed_count
     }
 
 @router.get("/{session_id}/export")
@@ -116,6 +151,8 @@ def export_session_excel(
 @router.post("/{session_id}/upload")
 async def upload_excel(
     session_id: str,
+    background_tasks: BackgroundTasks,
+    request: Request,
     file: UploadFile = File(...),
     db: DBSession = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
@@ -188,6 +225,18 @@ async def upload_excel(
     # Trigger the round-robin dispatcher to schedule tasks across all active sessions
     from ..tasks import dispatch_round_robin_tasks
     dispatch_round_robin_tasks.delay()
+    
+    # Extract JWT auth token and KYP internal user ID from the incoming request to pass to KYP APIs
+    auth_token = request.headers.get("Authorization")
+    
+    # DIAGNOSTIC LOGGING
+    logger.info(f"[{session_id}] RECEIVED HEADERS: {dict(request.headers)}")
+    
+    kyp_user_id = request.headers.get("x-kyp-user-id", "1")
+    
+    # Trigger the parallel KYP background job
+    from ..background_jobs import process_session_kyp_batch_bg
+    background_tasks.add_task(process_session_kyp_batch_bg, session_id, patent_numbers, auth_token, kyp_user_id)
 
     parse_duration = time.perf_counter() - parse_start_time
     logger.info(f"[{session_id}] Successfully parsed {len(patent_numbers)} unique patents from Excel in {parse_duration:.2f}s")

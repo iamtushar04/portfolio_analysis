@@ -14,6 +14,7 @@ class Session(Base):
     total_patents = Column(Integer, default=0)
     processed_patents = Column(Integer, default=0)
     owner_id = Column(String, index=True, nullable=True) # Deterministic UUID from external auth
+    kyp_status = Column(String, default="pending") # pending, processing, completed, error
     
     patents = relationship("PatentData", back_populates="session", cascade="all, delete")
 
@@ -48,6 +49,11 @@ class PatentData(Base):
     
     # Ranked/Filtered Forward Assignees
     ranked_forward_assignees = Column(JSON, nullable=True) # list of dicts with scores/reasons
+    
+    # KYP Data
+    kyp_score = Column(Integer, nullable=True) # Extracted top-level score for sorting
+    kyp_score_data = Column(JSON, nullable=True) # Full weighted_score details
+    kyp_classifications = Column(JSON, nullable=True) # Classification codes and descriptions
     
     status = Column(String, default="pending") # pending, success, failed
     error_message = Column(String, nullable=True)

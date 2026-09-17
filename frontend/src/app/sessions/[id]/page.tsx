@@ -44,17 +44,55 @@ export default function SessionDetail() {
     }
   }, [sessionId]);
 
+  const fetchStatus = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API_BASE}/api/sessions/${sessionId}/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const newStatus = res.data;
+      
+      setSession((prev: any) => {
+        if (!prev) {
+          fetchSession();
+          return prev;
+        }
+        
+        // If underlying progress changed, fetch full data
+        if (
+          prev.processed_patents !== newStatus.processed_patents ||
+          prev.kyp_status !== newStatus.kyp_status ||
+          prev.status !== newStatus.status
+        ) {
+          fetchSession();
+        }
+        
+        // Always update the top-level numbers for the UI
+        return {
+          ...prev,
+          processed_patents: newStatus.processed_patents,
+          kyp_status: newStatus.kyp_status,
+          status: newStatus.status,
+          total_patents: newStatus.total_patents
+        };
+      });
+    } catch (error) {
+      console.error("Failed to poll status", error);
+    }
+  }, [sessionId, fetchSession]);
+
   // Initial fetch when sessionId is available
   useEffect(() => {
     fetchSession();
   }, [fetchSession]);
 
-  // Poll every 3 seconds while processing
+  // Poll lightweight status endpoint every 2 seconds while processing
   useEffect(() => {
     if (session?.status !== 'processing') return;
-    const interval = setInterval(fetchSession, 3000);
+    const interval = setInterval(fetchStatus, 2000);
     return () => clearInterval(interval);
-  }, [session?.status, fetchSession]);
+  }, [session?.status, fetchStatus]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,10 +105,12 @@ export default function SessionDetail() {
 
     try {
       const token = localStorage.getItem("token");
+      const kypUserId = localStorage.getItem("user_id");
       await axios.post(`${API_BASE}/api/sessions/${sessionId}/upload`, formData, {
         headers: { 
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${token}`,
+          "x-kyp-user-id": kypUserId || "1"
         }
       });
       toast.success("Upload successful! Processing started.", { id: loadingToast });
@@ -203,17 +243,41 @@ export default function SessionDetail() {
 
       {/* Progress Bar */}
       {session.status === 'processing' && (
-        <div className="mb-8 glass-panel p-6 rounded-xl">
-          <div className="flex justify-between text-sm mb-2 font-medium">
-            <span className="text-indigo-300">Processing Patents...</span>
-            <span className="text-slate-300">{session.processed_patents} / {session.total_patents} ({progressPercentage}%)</span>
+        <div className="mb-8 glass-panel p-6 rounded-xl flex flex-col md:flex-row gap-8">
+          
+          {/* Celery Progress */}
+          <div className="flex-1">
+            <div className="flex justify-between text-sm mb-2 font-medium">
+              <span className="text-indigo-300">Data Enrichment (AI/Perplexity)</span>
+              <span className="text-slate-300">{session.processed_patents} / {session.total_patents} ({progressPercentage}%)</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+              <div
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 transition-all duration-500 ease-out"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
-            <div
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 transition-all duration-500 ease-out"
-              style={{ width: `${progressPercentage}%` }}
-            />
+
+          {/* KYP Batch Progress */}
+          <div className="flex-1">
+            <div className="flex justify-between text-sm mb-2 font-medium">
+              <span className="text-amber-300">KYP Batch Scoring</span>
+              <span className="text-slate-300 capitalize">{session.kyp_status || 'Pending'}</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+              {session.kyp_status === 'completed' ? (
+                 <div className="bg-emerald-500 h-3 w-full" />
+              ) : session.kyp_status === 'processing' || session.kyp_status === 'pending' ? (
+                 <div className="bg-gradient-to-r from-amber-500/60 to-amber-400 h-3 w-full animate-pulse" />
+              ) : session.kyp_status === 'error' ? (
+                 <div className="bg-rose-500 h-3 w-full" />
+              ) : (
+                 <div className="bg-slate-700 h-3 w-full" />
+              )}
+            </div>
           </div>
+          
         </div>
       )}
 

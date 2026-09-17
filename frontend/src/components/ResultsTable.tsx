@@ -64,7 +64,7 @@ function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?
   );
 }
 
-function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: boolean; onSelect: () => void; sortBy: 'topic' | 'subtopic' }) {
+function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: boolean; onSelect: () => void; sortBy: 'topic' | 'subtopic' | 'kyp' }) {
   const isPending = p.status === 'pending';
   const isFailed = p.status === 'failed';
 
@@ -224,6 +224,13 @@ function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: bo
         <div className="px-4 py-4 flex justify-center">
           {isPending || isFailed ? (
             <span className="text-slate-600">-</span>
+          ) : sortBy === 'kyp' ? (
+            <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner">
+               <span className={`text-xl font-bold leading-none ${p.kyp_score != null ? 'text-amber-400' : 'text-slate-500'}`}>
+                  {p.kyp_score != null ? p.kyp_score : '-'}
+               </span>
+               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">KYP Score</span>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner">
                <span className={`text-xl font-bold leading-none ${(sortBy === 'topic' ? maxT : maxS) >= 5 ? 'text-amber-400' : 'text-slate-400'}`}>
@@ -242,7 +249,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy }: { p: any; isSelected: bo
 
 export default function ResultsTable({ patents }: { patents: any[] }) {
   const [selectedPatent, setSelectedPatent] = useState<any | null>(null);
-  const [sortBy, setSortBy] = useState<'subtopic' | 'topic'>('subtopic');
+  const [sortBy, setSortBy] = useState<'subtopic' | 'topic' | 'kyp'>('subtopic');
   
   const sortedPatents = useMemo(() => {
     return [...patents].sort((a, b) => {
@@ -259,7 +266,11 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
       const scoresA = getScores(a);
       const scoresB = getScores(b);
       
-      if (sortBy === 'topic') {
+      if (sortBy === 'kyp') {
+        const kypA = a.kyp_score != null ? a.kyp_score : -1;
+        const kypB = b.kyp_score != null ? b.kyp_score : -1;
+        return kypB - kypA;
+      } else if (sortBy === 'topic') {
         return scoresB.t - scoresA.t;
       } else {
         return scoresB.s - scoresA.s;
@@ -316,10 +327,11 @@ export default function ResultsTable({ patents }: { patents: any[] }) {
               <select
                 className="bg-transparent text-[10px] text-amber-300 font-bold outline-none border-none cursor-pointer text-center"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'topic' | 'subtopic')}
+                onChange={(e) => setSortBy(e.target.value as 'topic' | 'subtopic' | 'kyp')}
               >
                 <option className="bg-slate-800 text-amber-300" value="topic">Topic</option>
                 <option className="bg-slate-800 text-amber-300" value="subtopic">Subtopic</option>
+                <option className="bg-slate-800 text-amber-300" value="kyp">KYP Score</option>
               </select>
             </div>
           </div>

@@ -599,7 +599,8 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
 
     pat_headers = [
         "Patent Number", "Title", "Assignees", "Abstract",
-        "Standard", "Standard Links", "Processing Status", "Error Message"
+        "Standard", "Standard Links", "Processing Status", "Error Message",
+        "KYP Overall Score", "KYP Age Score", "KYP Legal Status", "KYP Fwd/Bwd Citations Incremental", "KYP Matched Classifications"
     ]
 
     for col_num, h_text in enumerate(pat_headers, 1):
@@ -615,6 +616,17 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
 
         std_links = p.get("standard_links") or []
         std_links_str = "\n".join(std_links) if isinstance(std_links, list) else str(std_links)
+        
+        kyp_data = p.get("kyp_score_data") or {}
+        kyp_classifications = p.get("kyp_classifications") or []
+        
+        kyp_legal_status = kyp_data.get("legal_status", "")
+        if kyp_data.get("legal_status_score"):
+            kyp_legal_status += f" (Score: {kyp_data.get('legal_status_score')})"
+            
+        kyp_inc_cits = f"Fwd: {kyp_data.get('is_forward_citations_incremental', 'N/A')} | Bwd: {kyp_data.get('is_backward_citations_incremental', 'N/A')}"
+        
+        kyp_class_str = "\n".join([f"{c.get('code', '')}: {c.get('description', '')}" for c in kyp_classifications])
 
         row_vals = [
             p.get("patent_number", ""),
@@ -624,7 +636,12 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
             p.get("standard", ""),
             std_links_str,
             p.get("status", ""),
-            p.get("error_message", "") or ""
+            p.get("error_message", "") or "",
+            str(p.get("kyp_score", "")) if p.get("kyp_score") is not None else "",
+            str(kyp_data.get("age_score", "")),
+            kyp_legal_status,
+            kyp_inc_cits,
+            kyp_class_str
         ]
 
         is_even = r_idx % 2 == 0

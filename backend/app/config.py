@@ -13,6 +13,7 @@ class Settings:
     WISSEN_API_BASE_URL: str = os.getenv("WISSEN_API_BASE_URL")
     SPARTA_API_BASE_URL: str = os.getenv("SPARTA_API_BASE_URL")
     COMPETITOR_API_URL: str = os.getenv("COMPETITOR_API_URL")
+    KYP_BASE_URL: str = os.getenv("KYP_BASE_URL")
     
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     CELERY_CONCURRENCY: int = int(os.getenv("CELERY_CONCURRENCY", "4"))

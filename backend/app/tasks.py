@@ -16,6 +16,7 @@ from .services.taxonomy import classify_patent
 from .services.sparta import fetch_sparta_data
 from .services.competitor import fetch_competitor_data
 from .services.assignee_ranker import rank_assignees_dual_layer
+from .services.kyp import fetch_classifications_batch, filter_patents_batch, trigger_scoring_batch, poll_scoring_task
 from .redis_client import redis_client
 from .config import settings
 from .logging_config import logger, correlation_id_ctx
@@ -327,3 +328,5 @@ def _mark_patent_failed(session_id: str, patent_number: str, error_msg: str):
         logger.error(f"Error marking patent {patent_number} failed: {e}")
     finally:
         db.close()
+
+

@@ -456,6 +456,70 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                 </div>
               </div>
 
+              {/* KYP Card */}
+              <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-pink-600" />
+                <div className="pl-5 pr-4 pt-4 pb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[11px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-4 h-px bg-purple-500/60 inline-block" />
+                      KYP Rank & Classifications
+                    </h3>
+                    {patent.kyp_score != null && (
+                      <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
+                        Score: {patent.kyp_score}/100
+                      </span>
+                    )}
+                  </div>
+                  
+                  {isProcessing ? (
+                     <div className="space-y-4 animate-pulse pt-2 px-2">
+                        <div className="h-8 bg-slate-700/50 rounded-lg w-full"></div>
+                        <div className="h-16 bg-slate-700/50 rounded-lg w-full"></div>
+                     </div>
+                  ) : (!patent.kyp_score_data && (!patent.kyp_classifications || patent.kyp_classifications.length === 0)) ? (
+                    <EmptyState title="No KYP Data Available" />
+                  ) : (
+                    <div className="space-y-4">
+                      {patent.kyp_score_data && (
+                        <div className="bg-slate-800/40 rounded-lg border border-slate-700/50 p-3">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">Scoring Parameters</div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {Object.entries(patent.kyp_score_data).map(([key, value]) => {
+                              if (typeof value === 'object' || key === 'classifications' || key === 'rank' || key === 'title') return null;
+                              return (
+                                <div key={key} className="bg-slate-900/50 rounded p-2 flex flex-col justify-center">
+                                  <div className="text-[9px] text-slate-500 font-bold uppercase truncate" title={key.replace(/_/g, ' ')}>{key.replace(/_/g, ' ')}</div>
+                                  <div className="text-xs font-semibold text-slate-300 mt-0.5 truncate" title={String(value)}>{String(value)}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {patent.kyp_classifications && patent.kyp_classifications.length > 0 && (
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">Matched Classifications</div>
+                          <div className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+                            {patent.kyp_classifications.map((c: any, idx: number) => (
+                              <div key={idx} className="bg-slate-800/30 border border-slate-700/30 rounded p-2 flex gap-2 items-start">
+                                <span className="bg-purple-500/10 text-purple-300 border border-purple-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
+                                  {c.code}
+                                </span>
+                                <span className="text-xs text-slate-400 leading-tight">
+                                  {c.description}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Citations Card */}
               <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-sky-500 to-indigo-600" />
@@ -499,7 +563,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                       <div className="max-h-[350px] overflow-y-auto custom-scrollbar pr-1 space-y-1">
                         <div ref={fwdCitRef} />
                         {/* Forward Citations */}
-                        {filteredFwdCit.length > 0 && (
+                        {filteredFwdCit.length > 0 ? (
                           <>
                             <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider py-1.5 sticky top-0 bg-slate-900/90 backdrop-blur-sm z-10">
                               Forward Citations
@@ -518,9 +582,14 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                               </div>
                             ))}
                           </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-6 px-4 border border-dashed border-emerald-500/20 rounded-lg bg-emerald-500/5 mb-4">
+                            <span className="text-xs font-medium text-emerald-400/60 uppercase tracking-wider mb-1">Forward Citations</span>
+                            <span className="text-[10px] text-slate-500">None found</span>
+                          </div>
                         )}
                         {/* Backward Citations */}
-                        {filteredBwdCit.length > 0 && (
+                        {filteredBwdCit.length > 0 ? (
                           <>
                             <div ref={bwdCitRef} className="text-[10px] font-bold text-rose-500 uppercase tracking-wider py-1.5 sticky top-0 bg-slate-900/90 backdrop-blur-sm mt-2 z-10">
                               Backward Citations
@@ -539,6 +608,11 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                               </div>
                             ))}
                           </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-6 px-4 border border-dashed border-rose-500/20 rounded-lg bg-rose-500/5 mb-4">
+                            <span className="text-xs font-medium text-rose-400/60 uppercase tracking-wider mb-1">Backward Citations</span>
+                            <span className="text-[10px] text-slate-500">None found</span>
+                          </div>
                         )}
                         {(filteredFwdCit.length === 0 && filteredBwdCit.length === 0) && (
                           <div className="py-4 text-center">
