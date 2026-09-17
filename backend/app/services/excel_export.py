@@ -599,8 +599,7 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
 
     pat_headers = [
         "Patent Number", "Title", "Assignees", "Abstract",
-        "Standard", "Standard Links", "Processing Status", "Error Message",
-        "KYP Overall Score", "KYP Age Score", "KYP Legal Status", "KYP Fwd/Bwd Citations Incremental", "KYP Matched Classifications"
+        "Standard", "Standard Links", "Processing Status", "Error Message"
     ]
 
     for col_num, h_text in enumerate(pat_headers, 1):
@@ -617,17 +616,6 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
         std_links = p.get("standard_links") or []
         std_links_str = "\n".join(std_links) if isinstance(std_links, list) else str(std_links)
         
-        kyp_data = p.get("kyp_score_data") or {}
-        kyp_classifications = p.get("kyp_classifications") or []
-        
-        kyp_legal_status = kyp_data.get("legal_status", "")
-        if kyp_data.get("legal_status_score"):
-            kyp_legal_status += f" (Score: {kyp_data.get('legal_status_score')})"
-            
-        kyp_inc_cits = f"Fwd: {kyp_data.get('is_forward_citations_incremental', 'N/A')} | Bwd: {kyp_data.get('is_backward_citations_incremental', 'N/A')}"
-        
-        kyp_class_str = "\n".join([f"{c.get('code', '')}: {c.get('description', '')}" for c in kyp_classifications])
-
         row_vals = [
             p.get("patent_number", ""),
             p.get("title", ""),
@@ -636,12 +624,7 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
             p.get("standard", ""),
             std_links_str,
             p.get("status", ""),
-            p.get("error_message", "") or "",
-            str(p.get("kyp_score", "")) if p.get("kyp_score") is not None else "",
-            str(kyp_data.get("age_score", "")),
-            kyp_legal_status,
-            kyp_inc_cits,
-            kyp_class_str
+            p.get("error_message", "") or ""
         ]
 
         is_even = r_idx % 2 == 0
@@ -942,6 +925,130 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
             c.alignment = align_center_mid if col_idx in (1, 4, 7) else align_left_mid
             c.fill = block_fill
             
+        curr_row += 1
+
+    # ---------------------------------------------------------
+    # 7. KYP ANALYSIS SHEET
+    # ---------------------------------------------------------
+    ws_kyp = wb.create_sheet(title="KYP Analysis")
+    ws_kyp.views.sheetView[0].showGridLines = True
+    ws_kyp.freeze_panes = "A3"
+    
+    kyp_red = PatternFill(start_color="C0504D", end_color="C0504D", fill_type="solid")
+    kyp_yellow = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    kyp_orange = PatternFill(start_color="F79646", end_color="F79646", fill_type="solid")
+    kyp_teal = PatternFill(start_color="4BACC6", end_color="4BACC6", fill_type="solid")
+    kyp_blue = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+    kyp_gold = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    kyp_cit_orange = PatternFill(start_color="F79646", end_color="F79646", fill_type="solid")
+    kyp_green = PatternFill(start_color="9BBB59", end_color="9BBB59", fill_type="solid")
+    
+    super_headers = [
+        ("Patent Analysis", 1, 3, kyp_red),
+        ("Bibliographic Details", 4, 10, kyp_yellow),
+        ("Technology in trend", 11, 12, kyp_orange),
+        ("Novelty of patent", 13, 15, kyp_teal),
+        ("Doc Family Stats", 16, 17, kyp_blue),
+        ("Legal Actions", 18, 18, kyp_gold),
+        ("Citations", 19, 20, kyp_cit_orange),
+        ("Parameters Score", 21, 30, kyp_green)
+    ]
+    
+    for title_text, start_col, end_col, fill in super_headers:
+        ws_kyp.merge_cells(start_row=1, start_column=start_col, end_row=1, end_column=end_col)
+        cell = ws_kyp.cell(row=1, column=start_col, value=title_text)
+        cell.font = Font(name="Calibri", size=14, bold=True, color="000000")
+        cell.fill = fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        for col_idx in range(start_col, end_col + 1):
+            ws_kyp.cell(row=1, column=col_idx).border = header_border
+
+    kyp_sub_headers = [
+        ("Rank", kyp_red), ("Patent Number", kyp_red), ("Total Score", kyp_red),
+        ("Title", kyp_yellow), ("Priority Date", kyp_yellow), ("Expiry Date", kyp_yellow), 
+        ("Legal Status", kyp_yellow), ("Patent Life Span", kyp_yellow), 
+        ("Classifications", kyp_yellow), ("Inventors", kyp_yellow),
+        ("Active Similar Docs", kyp_orange), ("Is Foward Citations Increasing Yearly", kyp_orange),
+        ("Independant Claim Min Length", kyp_teal), ("Count 101 Rej", kyp_teal), ("Rejections on Novelty", kyp_teal),
+        ("Patent Family Count", kyp_blue), ("Family Active Stats", kyp_blue),
+        ("PTAB Records", kyp_gold),
+        ("Forward/Backward Citation Ratio", kyp_cit_orange), ("NPL Citations", kyp_cit_orange),
+        ("Legal Status Score", kyp_green), ("Family Score", kyp_green), ("Shortest Ic Score", kyp_green), 
+        ("Age Score", kyp_green), ("Forward/Backward Citation Ratio Score", kyp_green), 
+        ("Is Foward Citations Increasing Yearly Score", kyp_green), ("Count of Rejections on Novelty Score", kyp_green), 
+        ("PTAB Records Score", kyp_green), ("Active Similar Docs Score", kyp_green), ("Family Active Stats Score", kyp_green)
+    ]
+
+    for col_idx, (h_text, fill) in enumerate(kyp_sub_headers, 1):
+        cell = ws_kyp.cell(row=2, column=col_idx, value=h_text)
+        cell.font = Font(name="Calibri", size=11, bold=True)
+        cell.fill = fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
+
+    ws_kyp.row_dimensions[1].height = 30
+    ws_kyp.row_dimensions[2].height = 50
+
+    curr_row = 3
+    for p_idx, p in enumerate(patents):
+        kyp_data = p.get("kyp_score_data") or {}
+        kyp_classifications = p.get("kyp_classifications") or []
+        kyp_class_str = ", ".join([c.get('code', '') for c in kyp_classifications])
+        
+        def format_score(field):
+            val = kyp_data.get(field)
+            if val is None:
+                return "0/5"
+            return str(val) if "/" in str(val) else f"{val}/5"
+
+        row_vals = [
+            p_idx + 1,
+            p.get("patent_number", ""),
+            f"{p.get('kyp_score', 0)}/100" if p.get("kyp_score") is not None else "0/100",
+            p.get("title", ""),
+            kyp_data.get("priority_date", "N/A"),
+            kyp_data.get("expiry_date", "N/A"),
+            kyp_data.get("legal_status", "N/A"),
+            kyp_data.get("patent_life_span", "N/A"),
+            kyp_class_str,
+            kyp_data.get("inventors", "N/A"),
+            
+            kyp_data.get("active_similar_docs", 0),
+            "TRUE" if kyp_data.get("is_foward_citations_increasing_yearly") else "FALSE",
+            
+            kyp_data.get("independant_claim_min_length", 0),
+            kyp_data.get("count_101_rej", 0),
+            kyp_data.get("count_of_rejections_on_novelty", 0),
+            
+            kyp_data.get("patent_family_count", 0),
+            kyp_data.get("family_active_stats", 0),
+            
+            kyp_data.get("PTAB_records", 0),
+            
+            kyp_data.get("forward/backward_citation_ratio", 0),
+            kyp_data.get("npl_citations", 0),
+            
+            format_score("legal_status_score"),
+            format_score("family_score"),
+            format_score("shortest_ic_score"),
+            format_score("age_score"),
+            format_score("forward/backward_citation_ratio_score"),
+            format_score("is_foward_citations_increasing_yearly_score"),
+            format_score("count_of_rejections_on_novelty_score"),
+            format_score("PTAB_records_score"),
+            format_score("active_similar_docs_score"),
+            format_score("family_active_stats_score")
+        ]
+        
+        for col_idx, val in enumerate(row_vals, start=1):
+            if isinstance(val, list):
+                val = ", ".join([str(v) for v in val])
+            c = ws_kyp.cell(row=curr_row, column=col_idx, value=val)
+            c.font = body_font
+            c.border = thin_border
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            if p_idx % 2 != 0:
+                c.fill = alt_row_fill
         curr_row += 1
 
     # ---------------------------------------------------------
