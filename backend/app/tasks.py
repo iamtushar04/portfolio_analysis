@@ -15,6 +15,8 @@ from .services.wissen import fetch_wissen_data
 from .services.taxonomy import classify_patent
 from .services.sparta import fetch_sparta_data
 from .services.competitor import fetch_competitor_data
+from .services.assignee_ranker import rank_assignees_dual_layer
+from .services.kyp import fetch_classifications_batch, filter_patents_batch, trigger_scoring_batch, poll_scoring_task
 from .redis_client import redis_client
 from .config import settings
 from .logging_config import logger, correlation_id_ctx
@@ -154,6 +156,7 @@ async def _process_patent_async(session_id: str, patent_number: str):
                 patent_record.competitors = cached_record.competitors
                 patent_record.forward_competitors = cached_record.forward_competitors
                 patent_record.backward_competitors = cached_record.backward_competitors
+                patent_record.ranked_forward_assignees = cached_record.ranked_forward_assignees
                 patent_record.status = "success"
                 patent_record.error_message = None
                 db.commit()
@@ -217,24 +220,42 @@ async def _process_patent_async(session_id: str, patent_number: str):
                 if cleaned_a and cleaned_a.lower() not in ("unknown", "nan", ""):
                     bwd_assignees_set.add(cleaned_a)
 
-        # Run Competitor API for Forward Assignees and Backward Assignees in parallel (2 API calls)
+        # 5a. Rank Forward Assignees based on Topic/Subtopic FIRST
+        ranked_forward_assignees = None
+        top_fwd_assignees = list(fwd_assignees_set)
+        try:
+            topics_set = set()
+            subtopics_set = set()
+            for tax in (taxonomy_data or []):
+                if tax.get("topic"): topics_set.add(tax.get("topic"))
+                if tax.get("subtopic"): subtopics_set.add(tax.get("subtopic"))
+            
+            if (topics_set or subtopics_set) and fwd_assignees_set:
+                rank_start = time.perf_counter()
+                raw_ranked = await rank_assignees_dual_layer(list(topics_set), list(subtopics_set), list(fwd_assignees_set), db)
+                
+                # Keep if any score >= 5
+                ranked_forward_assignees = []
+                for r in raw_ranked:
+                    max_score = 0
+                    for e in r.get("topic_evals", []) + r.get("subtopic_evals", []):
+                        if e.get("score", 0) > max_score: max_score = e.get("score", 0)
+                    if max_score >= 5:
+                        ranked_forward_assignees.append(r)
+                top_fwd_assignees = [r["name"] for r in ranked_forward_assignees]
+                rank_duration = time.perf_counter() - rank_start
+                logger.info(f"[{session_id}] Patent {patent_number} - Assignees ranked in {rank_duration:.2f}s")
+        except Exception as e:
+            logger.warning(f"[{session_id}] Patent {patent_number} - Assignee ranking failed (non-critical): {e}")
+
+        # 5b. Run Competitor API for Ranked Forward Assignees
         comp_start = time.perf_counter()
-        fwd_comp_res, bwd_comp_res = await asyncio.gather(
-            fetch_competitor_data(patent_number, list(fwd_assignees_set), label="Forward"),
-            fetch_competitor_data(patent_number, list(bwd_assignees_set), label="Backward")
-        )
+        fwd_comp_res = await fetch_competitor_data(patent_number, top_fwd_assignees, label="Forward")
         comp_duration = time.perf_counter() - comp_start
         logger.info(f"[{session_id}] Patent {patent_number} - Competitors fetched in {comp_duration:.2f}s")
 
         fwd_competitors = fwd_comp_res.get("competitors", [])
-        bwd_competitors_raw = bwd_comp_res.get("competitors", [])
-
-        # Keep competitors in FWD, remove them from BWD
-        fwd_competitors_lower = {str(c).strip().lower() for c in fwd_competitors}
-        bwd_competitors = [
-            c for c in bwd_competitors_raw
-            if str(c).strip().lower() not in fwd_competitors_lower
-        ]
+        bwd_competitors = []
 
         # 6. Save to DB
         if patent_record:
@@ -250,6 +271,7 @@ async def _process_patent_async(session_id: str, patent_number: str):
             patent_record.competitors = []
             patent_record.forward_competitors = fwd_competitors
             patent_record.backward_competitors = bwd_competitors
+            patent_record.ranked_forward_assignees = ranked_forward_assignees
             patent_record.status = "success"
             patent_record.error_message = None
             db.commit()
@@ -306,3 +328,5 @@ def _mark_patent_failed(session_id: str, patent_number: str, error_msg: str):
         logger.error(f"Error marking patent {patent_number} failed: {e}")
     finally:
         db.close()
+
+

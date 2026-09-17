@@ -1,7 +1,7 @@
 import json
 import logging
 from sqlalchemy.orm import Session
-from openai import OpenAI
+from langfuse.openai import OpenAI
 from ..models.schemas import TranslationCache
 from ..config import settings
 
@@ -107,7 +107,8 @@ def batch_translate_names(db: Session, names: list[str]) -> dict[str, str]:
                     messages=[{"role": "user", "content": prompt}],
                     response_format={"type": "json_object"},
                     temperature=0.0,
-                    max_tokens=16384  # gpt-4o-mini maximum — prevents Unterminated string truncation
+                    max_tokens=16384,  # gpt-4o-mini maximum — prevents Unterminated string truncation
+                    name="batch-translation"
                 )
 
                 result_text = response.choices[0].message.content

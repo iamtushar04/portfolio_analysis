@@ -23,6 +23,8 @@ export default function SessionDetail() {
   const [globalSearch, setGlobalSearch] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
   const [translateExport, setTranslateExport] = useState(true);
+  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'topic' | 'subtopic'>('subtopic');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -42,10 +44,12 @@ export default function SessionDetail() {
 
     try {
       const token = localStorage.getItem("token");
+      const kypUserId = localStorage.getItem("user_id");
       await axios.post(`${API_BASE}/api/sessions/${sessionId}/upload`, formData, {
         headers: { 
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${token}`,
+          "x-kyp-user-id": kypUserId || "1"
         }
       });
       toast.success("Upload successful! Processing started.", { id: loadingToast });
@@ -95,7 +99,7 @@ export default function SessionDetail() {
     
     // For downloads, we need to fetch via fetch/axios to pass headers, then create object url
     axios.get(`${API_BASE}/api/sessions/${sessionId}/export`, {
-      params: { translate },
+      params: { translate, sort_by: sortBy },
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'blob'
     }).then(response => {
@@ -117,6 +121,49 @@ export default function SessionDetail() {
       console.error("Export failed", error);
       toast.error("Failed to export session.", { id: exportToast });
     });
+  };
+
+  const handleCustomExport = (translate: boolean) => {
+    if (selectedForExport.size === 0) {
+      toast.error("Please select at least one patent.");
+      return;
+    }
+    setShowExportModal(false);
+    const exportToast = toast.loading(translate ? "Translating & Ranking..." : "Generating Ranked Export...");
+    
+    const token = localStorage.getItem("token");
+    axios.post(`${API_BASE}/api/sessions/${sessionId}/export_custom`, {
+      patent_ids: Array.from(selectedForExport),
+      sort_by: sortBy
+    }, {
+      params: { translate },
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'blob'
+    }).then(response => {
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${data?.name || 'session'}_custom_export.xlsx`;
+      if (contentDisposition && contentDisposition.indexOf('filename=') !== -1) {
+          filename = contentDisposition.split('filename=')[1].replace(/['"]/g, '');
+      }
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Custom Export downloaded!", { id: exportToast });
+    }).catch(error => {
+      console.error("Custom Export failed", error);
+      toast.error("Failed to export custom session.", { id: exportToast });
+    });
+  };
+
+  const handleToggleExport = (id: string) => {
+    const next = new Set(selectedForExport);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedForExport(next);
   };
 
   return (
@@ -345,12 +392,26 @@ export default function SessionDetail() {
             <span className="text-indigo-300">Processing Patents...</span>
             <span className="text-slate-300">{data.processed_patents} / {data.total_patents} ({progressPercentage}%)</span>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
-            <div
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 transition-all duration-500 ease-out"
-              style={{ width: `${progressPercentage}%` }}
-            />
+
+          {/* KYP Batch Progress */}
+          <div className="flex-1">
+            <div className="flex justify-between text-sm mb-2 font-medium">
+              <span className="text-amber-300">KYP Batch Scoring</span>
+              <span className="text-slate-300 capitalize">{data.kyp_status || 'Pending'}</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+              {data.kyp_status === 'completed' ? (
+                 <div className="bg-emerald-500 h-3 w-full" />
+              ) : data.kyp_status === 'processing' || data.kyp_status === 'pending' ? (
+                 <div className="bg-gradient-to-r from-amber-500/60 to-amber-400 h-3 w-full animate-pulse" />
+              ) : data.kyp_status === 'error' ? (
+                 <div className="bg-rose-500 h-3 w-full" />
+              ) : (
+                 <div className="bg-slate-700 h-3 w-full" />
+              )}
+            </div>
           </div>
+          
         </div>
       )}
 
@@ -381,7 +442,21 @@ export default function SessionDetail() {
               p.title?.toLowerCase().includes(globalSearch.toLowerCase()) ||
               (p.assignees && p.assignees.join(' ').toLowerCase().includes(globalSearch.toLowerCase()))
             );
-            return <ResultsTable patents={filteredPatents} />;
+            return <ResultsTable 
+              patents={filteredPatents} 
+              selectedForExport={selectedForExport}
+              onToggleExport={handleToggleExport}
+              onSelectAll={() => {
+                const exportable = filteredPatents.filter((p: any) => p.status !== 'pending' && p.status !== 'failed');
+                if (selectedForExport.size === exportable.length && exportable.length > 0) {
+                  setSelectedForExport(new Set());
+                } else {
+                  setSelectedForExport(new Set(exportable.map((p: any) => p.patent_number)));
+                }
+              }}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
+            />;
           })()}
         </div>
       )}
@@ -390,9 +465,11 @@ export default function SessionDetail() {
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative animate-in fade-in zoom-in duration-200">
-            <h3 className="text-xl font-bold text-white mb-2">Export Configuration</h3>
+            <h3 className="text-xl font-bold text-white mb-2">{selectedForExport.size > 0 ? "Custom Export" : "Export Configuration"}</h3>
             <p className="text-slate-400 text-sm mb-6">
-              Would you like to translate foreign company names (Assignees, Competitors) to English?
+              {selectedForExport.size > 0 
+                ? `You have selected ${selectedForExport.size} patent(s). They will be ranked by ${sortBy === 'topic' ? 'Topic' : 'Subtopic'}.`
+                : "Would you like to translate foreign company names (Assignees, Competitors) to English?"}
             </p>
             
             <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-800 transition-colors mb-6">
@@ -416,7 +493,7 @@ export default function SessionDetail() {
                 Cancel
               </button>
               <button 
-                onClick={() => handleExport(translateExport)}
+                onClick={() => selectedForExport.size > 0 ? handleCustomExport(translateExport) : handleExport(translateExport)}
                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all"
               >
                 <Download size={16} />

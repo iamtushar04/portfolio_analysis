@@ -72,7 +72,7 @@ async def classify_patent(cpc_list: list, abstract: str, claims: str, patent_num
             name=f"classify-{patent_number}" if patent_number else "patent-taxonomy-classification",
             metadata={
                 "patent_number": patent_number,
-                "session_id": session_id,
+                "session_id": f"taxonomy_{session_id}",
                 "cpc_count": len(cpc_list),
                 "abstract_len": len(abstract),
                 "claims_len": len(claims)

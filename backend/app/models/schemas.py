@@ -14,6 +14,7 @@ class Session(Base):
     total_patents = Column(Integer, default=0)
     processed_patents = Column(Integer, default=0)
     owner_id = Column(String, index=True, nullable=True) # Deterministic UUID from external auth
+    kyp_status = Column(String, default="pending") # pending, processing, completed, error
     
     patents = relationship("PatentData", back_populates="session", cascade="all, delete")
 
@@ -46,6 +47,14 @@ class PatentData(Base):
     forward_competitors = Column(JSON, nullable=True) # list of strings from forward citations
     backward_competitors = Column(JSON, nullable=True) # list of strings from backward citations
     
+    # Ranked/Filtered Forward Assignees
+    ranked_forward_assignees = Column(JSON, nullable=True) # list of dicts with scores/reasons
+    
+    # KYP Data
+    kyp_score = Column(Integer, nullable=True) # Extracted top-level score for sorting
+    kyp_score_data = Column(JSON, nullable=True) # Full weighted_score details
+    kyp_classifications = Column(JSON, nullable=True) # Classification codes and descriptions
+    
     status = Column(String, default="pending") # pending, success, failed
     error_message = Column(String, nullable=True)
     
@@ -56,4 +65,16 @@ class TranslationCache(Base):
     
     original_text = Column(String, primary_key=True, index=True)
     english_text = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AssigneeRelevanceCache(Base):
+    __tablename__ = "assignee_relevance_cache"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    assignee_name = Column(String, index=True)
+    technology_term = Column(String, index=True)
+    term_type = Column(String) # "topic" or "subtopic"
+    relevance_score = Column(Integer)
+    reason = Column(String)
+    source = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)

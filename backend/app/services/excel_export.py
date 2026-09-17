@@ -373,7 +373,7 @@ from openpyxl.utils import get_column_letter
 from .translator import batch_translate_names
 
 
-def generate_session_excel(session_data: dict, db=None, translate: bool = False) -> bytes:
+def generate_session_excel(session_data: dict, db=None, translate: bool = False, patent_ids: list = None, sort_by: str = None) -> bytes:
     """
     Generates a professionally formatted, multi-sheet Excel file (.xlsx)
     containing complete portfolio analysis information for a session.
@@ -388,6 +388,31 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
     wb.remove(wb.active)
 
     patents = session_data.get("patents", [])
+
+    if patent_ids:
+        patents = [p for p in patents if p.get("patent_number") in patent_ids]
+
+    if sort_by in ("topic", "subtopic"):
+        for p in patents:
+            kyp = 0
+            if "kyp_score" in p and p.get("kyp_score") is not None:
+                try:
+                    kyp = float(p.get("kyp_score", 0))
+                except (ValueError, TypeError):
+                    pass
+                    
+            assignees = p.get("ranked_forward_assignees") or []
+            avg_score = 0
+            if assignees:
+                if sort_by == "topic":
+                    avg_score = sum(ra.get("topic_avg", 0) for ra in assignees) / len(assignees)
+                else:
+                    avg_score = sum(ra.get("subtopic_avg", 0) for ra in assignees) / len(assignees)
+                            
+            merged_score = (kyp * 0.5) + (avg_score * 10 * 0.5)
+            p["_merged_score"] = merged_score
+            
+        patents.sort(key=lambda x: x.get("_merged_score", 0), reverse=True)
 
     if translate and db:
         # --- Step 1: Aggregate ALL unique names from every field ---
@@ -494,8 +519,6 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
     align_center_mid = Alignment(horizontal="center", vertical="center", wrap_text=True)
     align_left_mid = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-    patents = session_data.get("patents", [])
-
     def get_assignees_str(assignees, fallback_key_obj, sep=", "):
         if isinstance(assignees, list):
             return sep.join(assignees) if assignees else fallback_key_obj.get("assignee", "Unknown")
@@ -560,7 +583,13 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
     ws_summary.cell(row=start_row - 1, column=1, value="Patents Overview").font = Font(
         name="Calibri", size=13, bold=True, color="1F4E78")
 
-    sum_headers = ["Patent Number", "Title", "Assignee(s)", "Status", "Standard Info"]
+    accuracy_label = "Final Accuracy"
+    if sort_by == "topic":
+        accuracy_label = "Final Accuracy (Topic)"
+    elif sort_by == "subtopic":
+        accuracy_label = "Final Accuracy (Subtopic)"
+
+    sum_headers = ["Patent Number", "Title", "Assignee(s)", "Status", "Standard Info", accuracy_label]
     for col_num, h_text in enumerate(sum_headers, 1):
         cell = ws_summary.cell(row=start_row, column=col_num, value=h_text)
         cell.font = header_font
@@ -571,13 +600,16 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
 
     for row_idx, p in enumerate(patents, start=start_row + 1):
         assignees_str = get_assignees_str(p.get("assignees") or [], p)
+        merged = p.get("_merged_score")
+        final_accuracy = f"{merged:.1f}" if merged is not None else "N/A"
 
         row_cells = [
             ws_summary.cell(row=row_idx, column=1, value=p.get("patent_number", "")),
             ws_summary.cell(row=row_idx, column=2, value=p.get("title", "")),
             ws_summary.cell(row=row_idx, column=3, value=assignees_str),
             ws_summary.cell(row=row_idx, column=4, value=p.get("status", "")),
-            ws_summary.cell(row=row_idx, column=5, value=p.get("standard", "No Standard Found"))
+            ws_summary.cell(row=row_idx, column=5, value=p.get("standard", "No Standard Found")),
+            ws_summary.cell(row=row_idx, column=6, value=final_accuracy)
         ]
 
         is_even = (row_idx - start_row) % 2 == 0
@@ -589,6 +621,7 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
                 c.fill = alt_row_fill
         row_cells[0].alignment = align_center_top
         row_cells[3].alignment = align_center_top
+        row_cells[5].alignment = align_center_top
 
     # ---------------------------------------------------------
     # 2. PATENT DETAILS SHEET  (unchanged — one row per patent)
@@ -615,7 +648,7 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
 
         std_links = p.get("standard_links") or []
         std_links_str = "\n".join(std_links) if isinstance(std_links, list) else str(std_links)
-
+        
         row_vals = [
             p.get("patent_number", ""),
             p.get("title", ""),
@@ -831,6 +864,224 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False)
             c.alignment = align
             c.fill = block_fill
 
+        curr_row += 1
+
+    # ---------------------------------------------------------
+    # 6. RANKED ASSIGNEES SHEET
+    # ---------------------------------------------------------
+    ws_ranked = wb.create_sheet(title="Ranked Assignees")
+    ws_ranked.views.sheetView[0].showGridLines = True
+    ws_ranked.freeze_panes = "A2"
+
+    ranked_headers = [
+        "Patent Number", "Title", "Assignee", 
+        "Topic Score", "Topic Reason", "Topic Source",
+        "Subtopic Score", "Subtopic Reason", "Subtopic Source"
+    ]
+    for col_num, h_text in enumerate(ranked_headers, 1):
+        cell = ws_ranked.cell(row=1, column=col_num, value=h_text)
+        cell.font = header_font
+        cell.fill = navy_header_fill
+        cell.alignment = align_center
+        cell.border = header_border
+    ws_ranked.row_dimensions[1].height = 26
+
+    curr_row = 2
+    for p_idx, p in enumerate(patents):
+        pat_num = p.get("patent_number", "")
+        pat_title = p.get("title", "")
+        
+        ranked_assignees = p.get("ranked_forward_assignees") or []
+        block_fill = block_fill_b if p_idx % 2 else block_fill_a
+        
+        if not ranked_assignees:
+            # Add an empty row for patents with no ranked assignees
+            for col_idx, val in enumerate([pat_num, pat_title, "—", "—", "—", "—", "—", "—", "—"], start=1):
+                c = ws_ranked.cell(row=curr_row, column=col_idx, value=val)
+                c.font = body_font
+                c.border = block_close_border
+                c.alignment = align_center_mid if col_idx in (1, 4, 7) else align_left_mid
+                c.fill = block_fill
+            curr_row += 1
+            continue
+            
+        assignee_names = []
+        all_t_scores = []
+        all_t_reasons = []
+        all_t_sources = []
+        all_s_scores = []
+        all_s_reasons = []
+        all_s_sources = []
+        
+        for ra in ranked_assignees:
+            a_name = ra.get("name", "")
+            assignee_names.append(a_name)
+            
+            t_evals = ra.get("topic_evals", [])
+            if not t_evals and "topic_eval" in ra: t_evals = [ra.get("topic_eval")]
+            s_evals = ra.get("subtopic_evals", [])
+            if not s_evals and "subtopic_eval" in ra: s_evals = [ra.get("subtopic_eval")]
+            
+            t_scores = "\n".join(f"{e.get('term', 'Topic')}: {e.get('score', '')}" for e in t_evals if e)
+            t_reasons = "\n\n".join(f"{e.get('term', 'Topic')}:\n{e.get('reason', '')}" for e in t_evals if e)
+            t_sources = "\n".join(f"{e.get('source', '')}" for e in t_evals if e)
+            
+            s_scores = "\n".join(f"{e.get('term', 'Subtopic')}: {e.get('score', '')}" for e in s_evals if e)
+            s_reasons = "\n\n".join(f"{e.get('term', 'Subtopic')}:\n{e.get('reason', '')}" for e in s_evals if e)
+            s_sources = "\n".join(f"{e.get('source', '')}" for e in s_evals if e)
+            
+            prefix = f"[{a_name}]\n" if len(ranked_assignees) > 1 else ""
+            
+            all_t_scores.append(f"{prefix}{t_scores}")
+            all_t_reasons.append(f"{prefix}{t_reasons}")
+            all_t_sources.append(f"{prefix}{t_sources}")
+            all_s_scores.append(f"{prefix}{s_scores}")
+            all_s_reasons.append(f"{prefix}{s_reasons}")
+            all_s_sources.append(f"{prefix}{s_sources}")
+            
+        row_vals = [
+            pat_num, 
+            pat_title, 
+            "\n\n".join(assignee_names),
+            "\n\n---\n\n".join(all_t_scores),
+            "\n\n---\n\n".join(all_t_reasons),
+            "\n\n---\n\n".join(all_t_sources),
+            "\n\n---\n\n".join(all_s_scores),
+            "\n\n---\n\n".join(all_s_reasons),
+            "\n\n---\n\n".join(all_s_sources)
+        ]
+        
+        for col_idx, val in enumerate(row_vals, start=1):
+            c = ws_ranked.cell(row=curr_row, column=col_idx, value=val)
+            c.font = body_font
+            c.border = block_close_border
+            c.alignment = align_center_mid if col_idx in (1, 4, 7) else align_left_mid
+            c.fill = block_fill
+            
+        curr_row += 1
+
+    # ---------------------------------------------------------
+    # 7. KYP ANALYSIS SHEET
+    # ---------------------------------------------------------
+    ws_kyp = wb.create_sheet(title="KYP Analysis")
+    ws_kyp.views.sheetView[0].showGridLines = True
+    ws_kyp.freeze_panes = "A3"
+    
+    kyp_red = PatternFill(start_color="C0504D", end_color="C0504D", fill_type="solid")
+    kyp_yellow = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    kyp_orange = PatternFill(start_color="F79646", end_color="F79646", fill_type="solid")
+    kyp_teal = PatternFill(start_color="4BACC6", end_color="4BACC6", fill_type="solid")
+    kyp_blue = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+    kyp_gold = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    kyp_cit_orange = PatternFill(start_color="F79646", end_color="F79646", fill_type="solid")
+    kyp_green = PatternFill(start_color="9BBB59", end_color="9BBB59", fill_type="solid")
+    
+    super_headers = [
+        ("Patent Analysis", 1, 3, kyp_red),
+        ("Bibliographic Details", 4, 10, kyp_yellow),
+        ("Technology in trend", 11, 12, kyp_orange),
+        ("Novelty of patent", 13, 15, kyp_teal),
+        ("Doc Family Stats", 16, 17, kyp_blue),
+        ("Legal Actions", 18, 18, kyp_gold),
+        ("Citations", 19, 20, kyp_cit_orange),
+        ("Parameters Score", 21, 30, kyp_green)
+    ]
+    
+    for title_text, start_col, end_col, fill in super_headers:
+        ws_kyp.merge_cells(start_row=1, start_column=start_col, end_row=1, end_column=end_col)
+        cell = ws_kyp.cell(row=1, column=start_col, value=title_text)
+        cell.font = Font(name="Calibri", size=14, bold=True, color="000000")
+        cell.fill = fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        for col_idx in range(start_col, end_col + 1):
+            ws_kyp.cell(row=1, column=col_idx).border = header_border
+
+    kyp_sub_headers = [
+        ("Rank", kyp_red), ("Patent Number", kyp_red), ("Total Score", kyp_red),
+        ("Title", kyp_yellow), ("Priority Date", kyp_yellow), ("Expiry Date", kyp_yellow), 
+        ("Legal Status", kyp_yellow), ("Patent Life Span", kyp_yellow), 
+        ("Classifications", kyp_yellow), ("Inventors", kyp_yellow),
+        ("Active Similar Docs", kyp_orange), ("Is Foward Citations Increasing Yearly", kyp_orange),
+        ("Independant Claim Min Length", kyp_teal), ("Count 101 Rej", kyp_teal), ("Rejections on Novelty", kyp_teal),
+        ("Patent Family Count", kyp_blue), ("Family Active Stats", kyp_blue),
+        ("PTAB Records", kyp_gold),
+        ("Forward/Backward Citation Ratio", kyp_cit_orange), ("NPL Citations", kyp_cit_orange),
+        ("Legal Status Score", kyp_green), ("Family Score", kyp_green), ("Shortest Ic Score", kyp_green), 
+        ("Age Score", kyp_green), ("Forward/Backward Citation Ratio Score", kyp_green), 
+        ("Is Foward Citations Increasing Yearly Score", kyp_green), ("Count of Rejections on Novelty Score", kyp_green), 
+        ("PTAB Records Score", kyp_green), ("Active Similar Docs Score", kyp_green), ("Family Active Stats Score", kyp_green)
+    ]
+
+    for col_idx, (h_text, fill) in enumerate(kyp_sub_headers, 1):
+        cell = ws_kyp.cell(row=2, column=col_idx, value=h_text)
+        cell.font = Font(name="Calibri", size=11, bold=True)
+        cell.fill = fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
+
+    ws_kyp.row_dimensions[1].height = 30
+    ws_kyp.row_dimensions[2].height = 50
+
+    curr_row = 3
+    for p_idx, p in enumerate(patents):
+        kyp_data = p.get("kyp_score_data") or {}
+        kyp_classifications = p.get("kyp_classifications") or []
+        kyp_class_str = ", ".join([c.get('code', '') for c in kyp_classifications])
+        
+        def format_score(field):
+            val = kyp_data.get(field)
+            if val is None:
+                return "0/5"
+            return str(val) if "/" in str(val) else f"{val}/5"
+
+        row_vals = [
+            p_idx + 1,
+            p.get("patent_number", ""),
+            f"{p.get('kyp_score', 0)}/100" if p.get("kyp_score") is not None else "0/100",
+            p.get("title", ""),
+            kyp_data.get("priority_date", "N/A"),
+            kyp_data.get("expiry_date", "N/A"),
+            kyp_data.get("legal_status", "N/A"),
+            kyp_data.get("patent_life_span", "N/A"),
+            kyp_class_str,
+            kyp_data.get("inventors", "N/A"),
+            
+            kyp_data.get("active_similar_docs", 0),
+            "TRUE" if kyp_data.get("is_foward_citations_increasing_yearly") else "FALSE",
+            
+            kyp_data.get("independant_claim_min_length", 0),
+            kyp_data.get("count_101_rej", 0),
+            kyp_data.get("count_of_rejections_on_novelty", 0),
+            
+            kyp_data.get("patent_family_count", 0),
+            kyp_data.get("family_active_stats", 0),
+            
+            kyp_data.get("PTAB_records", 0),
+            
+            kyp_data.get("forward/backward_citation_ratio", 0),
+            kyp_data.get("npl_citations", 0),
+            
+            format_score("legal_status_score"),
+            format_score("family_score"),
+            format_score("shortest_ic_score"),
+            format_score("age_score"),
+            format_score("forward/backward_citation_ratio_score"),
+            format_score("is_foward_citations_increasing_yearly_score"),
+            format_score("count_of_rejections_on_novelty_score"),
+            format_score("PTAB_records_score"),
+            format_score("active_similar_docs_score"),
+            format_score("family_active_stats_score")
+        ]
+        
+        for col_idx, val in enumerate(row_vals, start=1):
+            if isinstance(val, list):
+                val = ", ".join([str(v) for v in val])
+            c = ws_kyp.cell(row=curr_row, column=col_idx, value=val)
+            c.font = body_font
+            c.border = thin_border
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            if p_idx % 2 != 0:
+                c.fill = alt_row_fill
         curr_row += 1
 
     # ---------------------------------------------------------
