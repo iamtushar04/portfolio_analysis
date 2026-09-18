@@ -366,14 +366,14 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                     </h3>
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 rounded px-2 py-1">
-                        <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Rank By:</span>
+                        <span className="text-[9px] uppercase tracking-wider text-slate-200 font-bold">Rank By:</span>
                         <select
-                          className="bg-transparent text-xs text-amber-300 font-medium outline-none border-none cursor-pointer"
+                          className="bg-transparent text-xs text-slate-100 font-medium outline-none border-none cursor-pointer"
                           value={rankBy}
                           onChange={(e) => setRankBy(e.target.value as 'topic' | 'subtopic')}
                         >
-                          <option className="bg-slate-800 text-amber-300" value="topic">Topic</option>
-                          <option className="bg-slate-800 text-amber-300" value="subtopic">Subtopic</option>
+                          <option className="bg-slate-800 text-slate-100" value="topic">Topic</option>
+                          <option className="bg-slate-800 text-slate-100" value="subtopic">Subtopic</option>
                         </select>
                       </div>
                       <span className="text-[10px] font-semibold text-amber-500/70">
@@ -406,9 +406,9 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                          const activeScore = rankBy === 'topic' ? (assignee.topic_avg || 0) : (assignee.subtopic_avg || 0);
                          
                          return (
-                          <div key={`ranked-${i}`} className="bg-slate-100/40 border border-slate-700/50 rounded-lg p-3">
+                          <div key={`ranked-${i}`} className="bg-slate-100 border border-slate-700/50 rounded-lg p-3">
                             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700/30">
-                              <span className="text-sm font-bold text-slate-200">{assignee.name}</span>
+                              <span className="text-sm font-bold text-slate-500">{assignee.name}</span>
                               <div className="flex gap-2 items-center">
                                 <span className={`text-sm font-bold px-2 py-0.5 rounded ${activeScore >= 5 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-700/50 text-slate-400'}`} title="Score">
                                   {activeScore.toFixed(1)}
@@ -419,11 +419,11 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                             <div className="space-y-3">
                               {topicEvals.map((evalObj: any, idx: number) => evalObj.reason ? (
                                 <div key={`teval-${idx}`}>
-                                  <div className="text-[10px] font-semibold text-slate-500 uppercase flex items-center flex-wrap gap-x-1">
+                                  <div className="text-[10px] font-semibold text-slate-700 uppercase flex items-center flex-wrap gap-x-1">
                                     Topic Evidence {evalObj.term && <span className="text-indigo-400 normal-case">- {evalObj.term}</span>}
-                                    <span className="font-bold text-amber-500/80 normal-case">({evalObj.score}/10)</span>
+                                    <span className="font-bold text-amber-500 normal-case">({evalObj.score}/10)</span>
                                   </div>
-                                  <p className="text-xs text-slate-300 italic mt-0.5">{evalObj.reason}</p>
+                                  <p className="text-xs text-slate-500 italic mt-0.5">{evalObj.reason}</p>
                                   {evalObj.source && (
                                     <a href={evalObj.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1">
                                       <ExternalLink size={10} /> Source
@@ -438,7 +438,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                                     Subtopic Evidence {evalObj.term && <span className="text-indigo-400 normal-case">- {evalObj.term}</span>}
                                     <span className="font-bold text-amber-500/80 normal-case">({evalObj.score}/10)</span>
                                   </div>
-                                  <p className="text-xs text-slate-300 italic mt-0.5">{evalObj.reason}</p>
+                                  <p className="text-xs text-slate-500 italic mt-0.5">{evalObj.reason}</p>
                                   {evalObj.source && (
                                     <a href={evalObj.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1">
                                       <ExternalLink size={10} /> Source

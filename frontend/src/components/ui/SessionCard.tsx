@@ -2,7 +2,7 @@ import { FolderOpen, Trash2, ArrowRight } from "lucide-react";
 
 interface SessionCardProps {
   session: any;
-  onDelete: (e: any, id: string, name: string) => void;
+  onDelete: () => void;
   onClick: () => void;
 }
 
@@ -74,8 +74,11 @@ export default function SessionCard({
 
         {/* Delete */}
         <button
+        onClick={(e) => {
+          e.stopPropagation(),
+          onDelete()
+        }}
           type="button"
-          onClick={(e)=>onDelete(e, session.id, session.name)}
           className="
           p-2
 

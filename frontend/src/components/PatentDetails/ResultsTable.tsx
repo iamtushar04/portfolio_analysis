@@ -149,56 +149,188 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
             <span className="text-slate-800">-</span>
           ) : (
             <div className="flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar pr-1.5">
+
   {Object.entries(grouped).map(([domain, topics], dIdx) => (
+
     <div
       key={dIdx}
-      className="bg-slate-800 rounded-lg p-2 border border-slate-700/50"
+      className="
+        relative
+        pl-3
+      "
     >
-      {/* Domain */}
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wide">
-          {domain}
-        </span>
 
-        <span className="text-[9px] text-slate-100">
+      {/* Domain */}
+      <div
+        className="
+          flex
+          items-center
+          justify-between
+
+          text-indigo-700
+          font-bold
+          text-[11px]
+          uppercase
+          tracking-wide
+
+          mb-1
+        "
+      >
+
+        <div className="flex items-center gap-2">
+
+          <span
+            className="
+              w-2
+              h-2
+              rounded-full
+              bg-indigo-500
+            "
+          />
+
+          {domain}
+
+        </div>
+
+
+        <span
+          className="
+            text-[9px]
+            text-slate-500
+          "
+        >
           {Object.keys(topics).length} topics
         </span>
+
+
       </div>
+
+
 
       {/* Topics */}
-      <div className="flex flex-wrap gap-1.5">
-        {Object.entries(topics).map(([topic, subtopics], tIdx) => (
+      <div
+        className="
+          ml-1
+          border-l
+          border-slate-300
+          pl-3
+          flex
+          flex-col
+          gap-1.5
+        "
+      >
+
+        {Object.entries(topics).map(
+          ([topic, subtopics], tIdx) => (
+
           <div
             key={tIdx}
-            className="bg-slate-700 rounded-md px-2 py-1 border border-slate-700/40"
+            className="
+              relative
+            "
           >
-            <div className="text-[10px] font-medium text-slate-300">
+
+            {/* Topic */}
+
+            <div
+              className="
+                flex
+                items-center
+                gap-2
+                text-[10px]
+                font-semibold
+                text-slate-700
+              "
+            >
+
+              <span
+                className="
+                  absolute
+                  -left-[17px]
+                  w-2
+                  h-2
+                  rounded-full
+                  bg-slate-400
+                "
+              />
+
               {topic}
+
             </div>
 
+
+
+            {/* Subtopics */}
+
             {subtopics.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {subtopics.map((sub, sIdx) => (
-                  <span
+
+              <div
+                className="
+                  ml-3
+                  mt-1
+                  border-l
+                  border-slate-200
+                  pl-3
+
+                  flex
+                  flex-col
+                  gap-1
+                "
+              >
+
+                {subtopics.map(
+                  (sub, sIdx)=>(
+
+                  <div
                     key={sIdx}
-                    className="px-1.5 py-0.5 rounded-full text-[9px]
-                    bg-emerald-900 text-emerald-300
-                    border border-emerald-500/20"
+                    className="
+                      relative
+                      text-[9px]
+                      text-emerald-700
+                    "
                   >
+
+                    <span
+                      className="
+                        absolute
+                        -left-[17px]
+                        top-1
+                        w-1.5
+                        h-1.5
+                        rounded-full
+                        bg-emerald-500
+                      "
+                    />
+
                     {sub}
-                  </span>
+
+                  </div>
+
                 ))}
+
               </div>
+
             )}
+
           </div>
+
         ))}
+
       </div>
+
+
     </div>
+
   ))}
 
+
+
   {Object.keys(grouped).length === 0 && (
-    <span className="text-slate-800 text-xs italic">No data</span>
+    <span className="text-slate-800 text-xs italic">
+      No data
+    </span>
   )}
+
 </div>
           )}
         </div>
@@ -257,8 +389,8 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
           {isPending || isFailed ? (
             <span className="text-slate-600">-</span>
           ) : (
-            <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner w-full max-w-[90px]">
-               <span className={`text-xl font-bold leading-none ${mergedScore >= 50 ? 'text-amber-400' : 'text-slate-400'}`}>
+            <div className="flex flex-col items-center justify-center bg-slate-200 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner w-full max-w-[90px]">
+               <span className={`text-xl font-bold leading-none ${mergedScore >= 50 ? 'text-amber-700' : 'text-slate-500'}`}>
                   {mergedScore.toFixed(1)}
                </span>
                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Score</span>
@@ -327,7 +459,7 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
     <>
       <div className="w-full bg-white rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
         {/* Sticky Header */}
-        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700 items-center">
+        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-100 text-slate-700 shrink-0 border-b border-slate-700 items-center">
           <div className="px-3 py-3 flex items-center justify-center border-r border-slate-700/30">
             <input 
               type="checkbox" 
@@ -342,16 +474,16 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
           <div className="px-4 py-3 font-semibold">Standards</div>
           <div className="px-4 py-3 font-semibold text-center">Citations</div>
           <div className="px-4 py-3 font-semibold text-center flex flex-col items-center justify-center border-l border-slate-700/50">
-            <span className="text-amber-400 mb-1">Ranked Score</span>
+            <span className="text-slate-500 mb-1">Ranked Score</span>
             <div className="flex items-center gap-1 bg-slate-900/50 rounded px-1.5 py-0.5 w-fit">
-              <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">By:</span>
+              <span className="text-[9px] uppercase tracking-wider text-slate-100 font-bold">By:</span>
               <select
-                className="bg-transparent text-[10px] text-amber-300 font-bold outline-none border-none cursor-pointer text-center"
+                className="bg-transparent text-[10px] text-slate-100 font-bold outline-none border-none cursor-pointer text-center"
                 value={sortBy}
                 onChange={(e) => onSortByChange(e.target.value as 'topic' | 'subtopic')}
               >
-                <option className="bg-slate-800 text-amber-300" value="topic">Topic</option>
-                <option className="bg-slate-800 text-amber-300" value="subtopic">Subtopic</option>
+                <option className="bg-slate-200 text-slate-700" value="topic">Topic</option>
+                <option className="bg-slate-200 text-slate-700" value="subtopic">Subtopic</option>
               </select>
             </div>
           </div>

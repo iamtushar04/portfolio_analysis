@@ -9,6 +9,8 @@ import { config } from '../../../config';
 import { BarLoader } from 'react-spinners';
 import { useQuery } from "@tanstack/react-query";
 import { GetSessionById } from "../../../services/GetSessionById";
+import ExcelPreview from '@/components/excel/ExcelPreview';
+import { FileSpreadsheet } from "lucide-react";
 const API_BASE = config.API_URL;
 
 export default function SessionDetail() {
@@ -168,8 +170,8 @@ export default function SessionDetail() {
 
   return (
     <>
-    <header className="bg-red-100 container mx-auto w-full px-4 md:px-8 py-3">
-  <div className="rounded-2xl bg-red-100 shadow-md px-4 py-3">
+    <header className="bg-white container mx-auto w-full px-4 md:px-8 py-3">
+  <div className="rounded-2xl bg-white shadow-md px-4 py-3">
 
     <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
 
@@ -330,8 +332,9 @@ export default function SessionDetail() {
               disabled={uploading}
               className="
                 flex items-center gap-2
-                bg-emerald-600
-                hover:bg-emerald-500
+                bg-emerald-500
+                hover:bg-emerald-600
+                active:bg-emerald-700
                 text-white
                 px-4 py-2
                 rounded-xl
@@ -348,35 +351,11 @@ export default function SessionDetail() {
           </>
 
         )}
-
+      <ExcelPreview sessionId={sessionId}/>
 
 
         {/* Export */}
-        {(data.status === "completed" ||
-          data.status === "processing") && (
-
-          <button
-            onClick={()=>setShowExportModal(true)}
-            className="
-              flex items-center gap-2
-              bg-green-600
-              hover:bg-green-700
-              active:bg-green-800
-              text-white
-              px-4 py-2
-              rounded-xl
-              font-medium
-              transition
-              cursor-pointer
-            "
-          >
-
-            <Download size={18}/>
-            Export
-
-          </button>
-
-        )}
+        
 
       </div>
 
@@ -389,7 +368,7 @@ export default function SessionDetail() {
       {data.status === 'processing' && (
         <div className="mb-8 bg-white p-6 rounded-xl">
           <div className="flex justify-between text-sm mb-2 font-medium">
-            <span className="text-indigo-300">Processing Patents...</span>
+            <span className="text-slate-400">Processing Patents...</span>
             <span className="text-slate-300">{data.processed_patents} / {data.total_patents} ({progressPercentage}%)</span>
           </div>
 
@@ -403,7 +382,7 @@ export default function SessionDetail() {
               {data.kyp_status === 'completed' ? (
                  <div className="bg-emerald-500 h-3 w-full" />
               ) : data.kyp_status === 'processing' || data.kyp_status === 'pending' ? (
-                 <div className="bg-gradient-to-r from-amber-500/60 to-amber-400 h-3 w-full animate-pulse" />
+                 <div className="bg-gradient-to-r from-salte-500 to-salte-700 h-3 w-full animate-pulse" />
               ) : data.kyp_status === 'error' ? (
                  <div className="bg-rose-500 h-3 w-full" />
               ) : (
@@ -418,14 +397,14 @@ export default function SessionDetail() {
       {/* Empty State */}
       {data.status === 'pending' && (
         <div className="bg-white rounded-xl border border-dashed border-slate-600 p-20 text-center">
-          <UploadCloud size={48} className="mx-auto text-indigo-400 mb-4" />
+          <UploadCloud size={48} className="mx-auto text-slate-500 mb-4" />
           <h3 className="text-xl font-medium text-slate-500 mb-2">Upload your Patent List</h3>
-          <p className="text-slate-400 max-w-md mx-auto mb-6">
+          <p className="text-slate-500 max-w-md mx-auto mb-6">
             Upload an Excel (.xlsx) file containing patent numbers in the first column to begin the automated analysis pipeline.
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline cursor-pointer"
+            className="text-slate-500 hover:text-slate-600 font-medium hover:underline cursor-pointer"
           >
             Click to Browse Files
           </button>

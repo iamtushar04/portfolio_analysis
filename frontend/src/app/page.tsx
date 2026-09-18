@@ -1,16 +1,15 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Plus, FolderOpen, ArrowRight, Trash2, LogOut, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, FolderOpen, LogOut, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { config } from '../config';
  import { GetSessions } from '@/services/GetSessions';
 import SessionCard from '@/components/ui/SessionCard';
 import { ClipLoader } from 'react-spinners';
 import { useQuery } from '@tanstack/react-query';
 import { CreateSession } from '@/services/CreateSession';
 import { DeleteSession } from '@/services/DeleteSession';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 export default function Home() {
   const [sessionToDelete, setSessionToDelete] = useState<{id: string, name: string} | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -28,35 +27,45 @@ export default function Home() {
 });
 
 
-const sessions = data?.data || [];
 
+const queryClient = useQueryClient();
 
-  // useEffect(() => {
-  //   const fetchSessions = async () => {
-  //     try {
-  //       setLoading(true)
-  //     const response = await GetSessions();
-  //     setSessions(response)
-  //     } catch (error) {
-  //       console.log(error);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   }
-  //   fetchSessions();
-  // }, []);
+const deleteMutaion = useMutation({
+  mutationFn: DeleteSession,
 
+  onSuccess: () => {
+    queryClient.invalidateQueries({
+      queryKey: ["sessions"]
+    });
+    toast.success("Session deleted")
+  },
+  onError: (error) => {
+    toast.error(error.message)
+  }
+});
+
+const createMutaion = useMutation({
+  mutationFn: CreateSession,
+
+  onSuccess: () => {
+    queryClient.invalidateQueries({
+      queryKey: ["sessions"]
+    })
+  },
+  onError: (error) => {
+    toast.error(error.message);
+  }
+
+})
   
-
+if (isError) {
+  toast.error(error.message)
+}
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.setItem("isAuth", "false");
     router.push("/login");
   };
-
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-  });
 
 
   const executeCreateSession = async (e: React.FormEvent) => {
@@ -68,10 +77,10 @@ const sessions = data?.data || [];
     
     try {
       const res = await CreateSession(newSessionName.trim());
-      if (res.data && res.data.id) {
+      if (res && res.id) {
         toast.success('Session created successfully!', { id: loadingToast });
         refetch();
-        router.push(`/sessions/${res.data.id}`);
+        router.push(`/sessions/${res.id}`);
       } else {
         toast.error('Session created but ID missing', { id: loadingToast });
       }
@@ -84,32 +93,7 @@ const sessions = data?.data || [];
     }
   };
 
-  const confirmDeleteSession = (e: React.MouseEvent, id: string, name: string) => {
-    e.stopPropagation(); // prevent navigation
-    setSessionToDelete({ id, name });
-  };
-
-  const executeDelete = async () => {
-    if (!sessionToDelete) return;
-    const { id } = sessionToDelete;
-    setSessionToDelete(null); // Close modal instantly
-
-    sessions.filter((s: any) => s.id !== id);
-
-    try {
-      await axios.delete(`${config.API_URL}/api/sessions/${id}`, getHeaders());
-      toast.success('Session deleted');
-      refetch();
-    } catch (error: any) {
-      console.error("Failed to delete session", error);
-      toast.error("Failed to delete session");
-      if (error?.response?.status === 401) {
-        localStorage.removeItem("token");
-        router.push("/login");
-      }
-      // fetchSessions(); // Re-fetch on error to sync state
-    }
-  };
+  
 
   return (
     <main className="min-h-screen bg-white text-slate-100 px-6 py-10 relative">
@@ -214,7 +198,7 @@ const sessions = data?.data || [];
 
       <button
         onClick={() => {
-          setNewSessionName(`Session ${new Date().toLocaleDateString()}`);
+          createMutaion.mutate(data.id)
           setIsCreateModalOpen(true);
         }}
         className="
@@ -263,7 +247,7 @@ grid
 grid-cols-1
 md:grid-cols-2
 xl:grid-cols-3
-gap-7
+gap-7 animate-fadeIn
 "
 >
 
@@ -273,7 +257,7 @@ data.map((s:any)=>(
 <SessionCard
     key={s.id}
     session={s}
-    onDelete={confirmDeleteSession}
+    onDelete={() => deleteMutaion.mutate(s.id)}
     onClick={()=>router.push(`/sessions/${s.id}`)}
 />
 
@@ -364,9 +348,9 @@ data.map((s:any)=>(
         className="
         w-full
         max-w-md
-        bg-slate-900
+        bg-white
         border
-        border-slate-700
+        border-slate-200
         rounded-2xl
         p-7
         shadow-2xl">
@@ -379,14 +363,14 @@ data.map((s:any)=>(
           mb-6">
 
 
-            <h3 className="text-xl font-bold">
+            <h3 className="text-xl text-slate-700 font-bold">
               Create New Session
             </h3>
 
 
             <button
             onClick={()=>setIsCreateModalOpen(false)}
-            className="text-slate-400 hover:text-white">
+            className="text-slate-700 hover:text-slate-800 cursor-pointer">
               <X size={20}/>
             </button>
 
@@ -400,7 +384,7 @@ data.map((s:any)=>(
 
             <label className="
             text-sm
-            text-slate-400">
+            text-slate-700">
               Session Name
             </label>
 
@@ -417,12 +401,11 @@ data.map((s:any)=>(
             px-4
             py-3
             rounded-xl
-            bg-slate-800
-            border
-            border-slate-700
-            focus:ring-2
-            focus:ring-indigo-500
-            outline-none"
+            bg-gray-300
+            
+            focus-within:ring-2
+            focus-within:ring-slate-700
+            outline-none text-slate-700"
             placeholder="e.g. Q3 Telecomm Patents"
             required
             />
@@ -442,8 +425,9 @@ data.map((s:any)=>(
               px-4
               py-2
               rounded-lg
-              bg-slate-800
-              hover:bg-slate-700">
+              text-slate-700
+              hover:bg-slate-200
+              bg-white">
                 Cancel
               </button>
 
@@ -455,8 +439,9 @@ data.map((s:any)=>(
               px-6
               py-2
               rounded-lg
-              bg-indigo-600
-              hover:bg-indigo-500
+              bg-white
+              text-slate-800
+              hover:bg-slate-200
               disabled:opacity-50">
                 Create
               </button>
@@ -540,7 +525,7 @@ data.map((s:any)=>(
 
 
 
-            <button
+            {/* <button
             onClick={executeDelete}
             className="
             px-5
@@ -549,7 +534,7 @@ data.map((s:any)=>(
             bg-red-600
             hover:bg-red-500">
               Delete Session
-            </button>
+            </button> */}
 
 
           </div>
