@@ -288,6 +288,7 @@ export default function SessionDetail() {
 
       {/* Progress Bar */}
       {session.status === 'processing' && (
+        <>
         <div className="mb-8 glass-panel p-6 rounded-xl flex flex-col md:flex-row gap-8">
           
           {/* Celery Progress */}
@@ -324,6 +325,20 @@ export default function SessionDetail() {
           </div>
           
         </div>
+
+        {/* KYP waiting banner — only shown when Celery is 100% done but KYP is still running */}
+        {progressPercentage === 100 && session.kyp_status !== 'completed' && session.kyp_status !== 'error' && (
+          <div className="mb-6 flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-4 text-amber-300 text-sm">
+            <svg className="animate-spin h-4 w-4 shrink-0 text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H4z"></path>
+            </svg>
+            <span>
+              <strong>Patent data enrichment is complete!</strong> KYP batch scoring is still running in the background — scores will appear automatically when finished. Please do not close this tab.
+            </span>
+          </div>
+        )}
+        </>
       )}
 
       {/* Empty State */}
