@@ -302,7 +302,9 @@ def _check_session_completion(db, session_id: str):
             schemas.PatentData.status.in_(["success", "failed"])
         ).count()
         
-        if processed_count >= db_session.total_patents and db_session.total_patents > 0:
+        if (processed_count >= db_session.total_patents 
+            and db_session.total_patents > 0
+            and db_session.kyp_status in ["completed", "error"]):
             db_session.status = "completed"
             db.commit()
             
