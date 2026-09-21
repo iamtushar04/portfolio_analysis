@@ -14,9 +14,9 @@ interface ExcelSheet {
   data: any[];
 }
 
-export default function ExcelPreview({
+const ExcelPreview = ({
   sessionId,
-}: ExcelPreviewProps) {
+}: ExcelPreviewProps) => {
   const [open, setOpen] = useState(false);
   const [sheets, setSheets] = useState<ExcelSheet[]>([]);
   const [activeSheet, setActiveSheet] = useState(0);
@@ -368,3 +368,4 @@ export default function ExcelPreview({
     </>
   );
 }
+export default ExcelPreview;
