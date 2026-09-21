@@ -1,10 +1,11 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { UploadCloud, ArrowLeft, RefreshCw, Download, Search } from 'lucide-react';
+import { UploadCloud, ArrowLeft, RefreshCw, Download, Search, ShieldAlert } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import ResultsTable from '../../../components/ResultsTable';
+import InfringementDrawer from '../../../components/InfringementDrawer';
 import { config } from '../../../config';
 
 const API_BASE = config.API_URL;
@@ -23,6 +24,8 @@ export default function SessionDetail() {
   const [translateExport, setTranslateExport] = useState(true);
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'topic' | 'subtopic'>('subtopic');
+  const [infringementJobs, setInfringementJobs] = useState<Map<string, { job_id: string; status: string; result?: any }>>(new Map());
+  const [openInfringementDrawer, setOpenInfringementDrawer] = useState<{ patent_number: string; result: any } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -95,6 +98,40 @@ export default function SessionDetail() {
     const interval = setInterval(fetchStatus, 2000);
     return () => clearInterval(interval);
   }, [session?.status, fetchStatus]);
+
+  // Poll running infringement jobs every 5 seconds
+  useEffect(() => {
+    const runningJobs = Array.from(infringementJobs.entries()).filter(([_, job]) => job.status === 'running');
+    if (runningJobs.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const token = localStorage.getItem("token");
+      for (const [patentId, job] of runningJobs) {
+        try {
+          const res = await axios.get(`${API_BASE}/api/sessions/infringement/${job.job_id}/status`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (res.data && res.data.status !== 'running') {
+            setInfringementJobs(prev => {
+              const next = new Map(prev);
+              next.set(patentId, { job_id: job.job_id, status: res.data.status, result: res.data.result || res.data.message });
+              return next;
+            });
+            if (res.data.status === 'completed') {
+              toast.success(`Infringement Analysis completed for ${patentId}!`);
+            } else {
+              toast.error(`Infringement Analysis failed for ${patentId}.`);
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to poll infringement job ${job.job_id}`, e);
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [infringementJobs]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -220,6 +257,53 @@ export default function SessionDetail() {
     setSelectedForExport(next);
   };
 
+  const handleStartInfringement = async (patentId: string) => {
+    if (infringementJobs.has(patentId)) {
+      const job = infringementJobs.get(patentId);
+      if (job?.status === 'completed' && job.result) {
+        setOpenInfringementDrawer({ patent_number: patentId, result: job.result });
+        return;
+      }
+      if (job?.status === 'running') {
+        toast.error("An infringement analysis is already running for this patent.");
+        return;
+      }
+    }
+
+    const startToast = toast.loading("Starting Infringement Analysis...");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(`${API_BASE}/api/sessions/infringement/start`, {
+        patent_number: patentId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.data.status === 'completed') {
+        // Cache hit!
+        toast.success("Analysis loaded from cache!", { id: startToast });
+        setInfringementJobs(prev => {
+          const next = new Map(prev);
+          next.set(patentId, { job_id: res.data.job_id, status: 'completed', result: res.data.result });
+          return next;
+        });
+        setOpenInfringementDrawer({ patent_number: patentId, result: res.data.result });
+      } else {
+        // New run
+        toast.success("Analysis started! See the patent row for progress.", { id: startToast });
+        setInfringementJobs(prev => {
+          const next = new Map(prev);
+          next.set(patentId, { job_id: res.data.job_id, status: 'running' });
+          return next;
+        });
+      }
+      setSelectedForExport(new Set()); // Deselect after starting
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Failed to start analysis.", { id: startToast });
+    }
+  };
+
   return (
     <main className="w-full px-4 md:px-8 pt-12 pb-4">
       <button
@@ -275,13 +359,33 @@ export default function SessionDetail() {
           )}
 
           {(session.status === 'completed' || session.status === 'processing') && (
-            <button
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-emerald-600/20 border border-emerald-500/30"
-              onClick={() => setShowExportModal(true)}
-            >
-              <Download size={20} />
-              Export Excel
-            </button>
+            <>
+              <button
+                className="flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-rose-600/20 border border-rose-500/30"
+                onClick={() => {
+                  if (selectedForExport.size === 0) {
+                    toast.error("Please select a patent first.");
+                    return;
+                  }
+                  if (selectedForExport.size > 1) {
+                    toast.error("Please select only one patent for Infringement Analysis.");
+                    return;
+                  }
+                  const patentId = Array.from(selectedForExport)[0];
+                  handleStartInfringement(patentId);
+                }}
+              >
+                <ShieldAlert size={20} />
+                Infringement Analysis
+              </button>
+              <button
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-emerald-600/20 border border-emerald-500/30"
+                onClick={() => setShowExportModal(true)}
+              >
+                <Download size={20} />
+                Export Excel
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -382,6 +486,9 @@ export default function SessionDetail() {
               }}
               sortBy={sortBy}
               onSortByChange={setSortBy}
+              infringementJobs={infringementJobs}
+              onViewInfringement={(patent_number, result) => setOpenInfringementDrawer({ patent_number, result })}
+              onStartInfringement={handleStartInfringement}
             />;
           })()}
         </div>
@@ -429,6 +536,14 @@ export default function SessionDetail() {
           </div>
         </div>
       )}
+
+      {/* Infringement Drawer */}
+      <InfringementDrawer 
+        isOpen={openInfringementDrawer !== null}
+        onClose={() => setOpenInfringementDrawer(null)}
+        patentNumber={openInfringementDrawer?.patent_number || null}
+        result={openInfringementDrawer?.result}
+      />
     </main>
   );
 }

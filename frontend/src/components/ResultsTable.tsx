@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, ExternalLink, Ghost, ArrowDownWideNarrow } from 'lucide-react';
+import { Users, ExternalLink, Ghost, ArrowDownWideNarrow, Loader2, ShieldAlert } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import PatentDetailDrawer from './PatentDetailDrawer';
 
@@ -64,7 +64,7 @@ function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?
   );
 }
 
-function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }: { p: any; isSelected: boolean; onSelect: () => void; sortBy: 'topic' | 'subtopic'; isChecked: boolean; onToggleCheck: (id: string) => void; }) {
+function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, infringementJob, onViewInfringement, onStartInfringement }: { p: any; isSelected: boolean; onSelect: () => void; sortBy: 'topic' | 'subtopic'; isChecked: boolean; onToggleCheck: (id: string) => void; infringementJob?: { status: string; result?: any }; onViewInfringement?: (patent_number: string, result: any) => void; onStartInfringement?: (patent_number: string) => void; }) {
   const isPending = p.status === 'pending';
   const isFailed = p.status === 'failed';
 
@@ -97,7 +97,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
     <div className={`flex flex-col border-b border-slate-700/50 ${isSelected ? 'bg-slate-800/50' : ''}`}>
       {/* Main Row */}
       <div
-        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
+        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px_160px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
         onClick={() => canSelect && onSelect()}
       >
         {/* Checkbox Column */}
@@ -244,6 +244,40 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
             </div>
           )}
         </div>
+
+        {/* Infringement Analysis Action */}
+        <div className="px-4 py-4 flex justify-center border-l border-slate-700/30 h-full items-center">
+          {infringementJob?.status === 'running' && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider animate-pulse">
+              <Loader2 size={12} className="animate-spin" />
+              Analyzing
+            </div>
+          )}
+          {infringementJob?.status === 'completed' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onViewInfringement?.(p.patent_number, infringementJob.result); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
+            >
+              <ShieldAlert size={12} />
+              View Analysis
+            </button>
+          )}
+          {infringementJob?.status === 'error' && (
+            <div className="text-[10px] text-rose-400 font-bold uppercase tracking-wider text-center">
+              Analysis Failed
+            </div>
+          )}
+          {!infringementJob && p.has_cached_infringement && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onStartInfringement?.(p.patent_number); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
+            >
+              <ShieldAlert size={12} />
+              View Analysis
+            </button>
+          )}
+          {!infringementJob && !p.has_cached_infringement && <span className="text-slate-600">-</span>}
+        </div>
       </div>
 
     </div>
@@ -251,7 +285,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
 }
 
 
-export default function ResultsTable({ patents, selectedForExport, onToggleExport, onSelectAll, sortBy, onSortByChange }: { patents: any[]; selectedForExport: Set<string>; onToggleExport: (id: string) => void; onSelectAll: () => void; sortBy: 'topic' | 'subtopic'; onSortByChange: (val: 'topic' | 'subtopic') => void; }) {
+export default function ResultsTable({ patents, selectedForExport, onToggleExport, onSelectAll, sortBy, onSortByChange, infringementJobs, onViewInfringement, onStartInfringement }: { patents: any[]; selectedForExport: Set<string>; onToggleExport: (id: string) => void; onSelectAll: () => void; sortBy: 'topic' | 'subtopic'; onSortByChange: (val: 'topic' | 'subtopic') => void; infringementJobs?: Map<string, { job_id: string; status: string; result?: any }>; onViewInfringement?: (patent_number: string, result: any) => void; onStartInfringement?: (patent_number: string) => void; }) {
   const [selectedPatent, setSelectedPatent] = useState<any | null>(null);
   
   const sortedPatents = useMemo(() => {
@@ -306,7 +340,7 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
     <>
       <div className="w-full bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
         {/* Sticky Header */}
-        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700 items-center">
+        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px_160px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700 items-center">
           <div className="px-3 py-3 flex items-center justify-center border-r border-slate-700/30">
             <input 
               type="checkbox" 
@@ -334,6 +368,7 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
               </select>
             </div>
           </div>
+          <div className="px-4 py-3 font-semibold text-center border-l border-slate-700/50">Analysis</div>
         </div>
 
         {/* Virtualized Body */}
@@ -349,6 +384,9 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
                 sortBy={sortBy}
                 isChecked={selectedForExport.has(p.patent_number)}
                 onToggleCheck={onToggleExport}
+                infringementJob={infringementJobs?.get(p.patent_number)}
+                onViewInfringement={onViewInfringement}
+                onStartInfringement={onStartInfringement}
               />
             )}
           />

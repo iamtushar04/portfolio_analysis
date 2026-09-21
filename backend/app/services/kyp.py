@@ -17,7 +17,8 @@ async def fetch_classifications_batch(patents: List[str], user_id: str = "1", au
         headers["Authorization"] = auth_token
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # timeout=None means the request will wait as long as the KYP server needs to respond
+        async with httpx.AsyncClient(timeout=None) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -34,7 +35,8 @@ async def filter_patents_batch(codes: List[str], patents: List[str], user_id: st
         headers["Authorization"] = auth_token
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # timeout=None means the request will wait as long as the KYP server needs to respond
+        async with httpx.AsyncClient(timeout=None) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -52,7 +54,8 @@ async def trigger_scoring_batch(patents: List[str], user_id: str = "1", auth_tok
         headers["Authorization"] = auth_token
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # timeout=None means the request will wait as long as the KYP server needs to respond
+        async with httpx.AsyncClient(timeout=None) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()

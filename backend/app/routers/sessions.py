@@ -58,6 +58,15 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
     
     patents = db.query(schemas.PatentData).filter(schemas.PatentData.session_id == session_id).all()
     
+    # Check global cache for infringement analysis
+    patent_numbers = [p.patent_number for p in patents]
+    cached_patents = set()
+    if patent_numbers:
+        cache_records = db.query(schemas.InfringementAnalysisCache.patent_number).filter(
+            schemas.InfringementAnalysisCache.patent_number.in_(patent_numbers)
+        ).all()
+        cached_patents = {record[0] for record in cache_records}
+    
     # Calculate processed count dynamically
     processed_count = sum(1 for p in patents if p.status in ("success", "failed"))
     
@@ -98,7 +107,8 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
                 "kyp_classifications": getattr(p, 'kyp_classifications', []) or [],
                 "standard": p.standard,
                 "standard_links": p.standard_links,
-                "error_message": p.error_message
+                "error_message": p.error_message,
+                "has_cached_infringement": p.patent_number in cached_patents
             } for p in patents
         ]
     }
@@ -304,3 +314,39 @@ def delete_session(session_id: str, background_tasks: BackgroundTasks, db: DBSes
         
     background_tasks.add_task(_delete_session_background, session_id)
     return {"message": "Session deletion accepted and processing in background."}
+
+class InfringementStartRequest(BaseModel):
+    patent_number: str
+
+@router.post("/infringement/start")
+def start_infringement_analysis(
+    payload: InfringementStartRequest,
+    background_tasks: BackgroundTasks,
+    db: DBSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    job_id = str(uuid.uuid4())
+    
+    # Cache Check
+    cache_entry = db.query(schemas.InfringementAnalysisCache).filter(
+        schemas.InfringementAnalysisCache.patent_number == payload.patent_number
+    ).first()
+    
+    if cache_entry:
+        return {
+            "job_id": job_id,
+            "status": "completed",
+            "result": cache_entry.result_data
+        }
+        
+    from ..services.infringement_service import run_infringement_job
+    background_tasks.add_task(run_infringement_job, job_id, payload.patent_number)
+    return {"job_id": job_id}
+
+@router.get("/infringement/{job_id}/status")
+def check_infringement_status(job_id: str, current_user_id: str = Depends(get_current_user_id)):
+    from ..services.infringement_service import get_infringement_job_status
+    status_data = get_infringement_job_status(job_id)
+    if not status_data:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return status_data

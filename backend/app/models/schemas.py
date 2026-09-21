@@ -78,3 +78,10 @@ class AssigneeRelevanceCache(Base):
     reason = Column(String)
     source = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class InfringementAnalysisCache(Base):
+    __tablename__ = "infringement_analysis_cache"
+    
+    patent_number = Column(String, primary_key=True, index=True)
+    result_data = Column(JSON, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow)
