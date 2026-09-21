@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Users, ExternalLink, Ghost, ArrowDownWideNarrow, Loader2, ShieldAlert } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
-import PatentDetailDrawer from './PatentDetailDrawer';
+import PatentDetailDrawer from '../PatentDrawer/PatentDetailDrawer';
 
 function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?: string }) {
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -28,7 +28,7 @@ function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?
 
   return (
     <div className="text-xs text-slate-400 flex items-center gap-1 flex-wrap">
-      <Users size={12} className="shrink-0 text-slate-400" />
+      <Users size={12} className="shrink-0 text-slate-700" />
       {visible.map((a, idx) => (
         <span key={idx} className="truncate max-w-[140px]" title={allNames}>
           {a}{idx < visible.length - 1 ? ',' : ''}
@@ -37,7 +37,7 @@ function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?
       {hiddenCount > 0 && (
         <div className="relative inline-block">
           <span
-            className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-semibold cursor-pointer border border-indigo-500/30 select-none"
+            className="px-1.5 py-0.5 rounded bg-slate-200 text-indigo-300 text-[10px] font-semibold cursor-pointer select-none"
             onMouseEnter={() => setTooltipVisible(true)}
             onMouseLeave={() => setTooltipVisible(false)}
           >
@@ -46,7 +46,7 @@ function AssigneeList({ assignees, fallback }: { assignees?: string[]; fallback?
           {tooltipVisible && (
             <div
               style={{ position: 'fixed', zIndex: 9999, transform: 'translateY(-100%) translateY(-6px)' }}
-              className="bg-slate-800 text-slate-200 text-xs rounded p-2 shadow-2xl border border-slate-600 min-w-[180px] max-w-xs pointer-events-none"
+              className="bg-slate-800 text-slate-600 text-xs rounded p-2 shadow-2xl border border-slate-600 min-w-[180px] max-w-xs pointer-events-none"
             >
               <div className="font-bold text-[10px] text-indigo-400 mb-1 border-b border-slate-700 pb-0.5">
                 All Assignees ({list.length}):
@@ -82,7 +82,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
   });
 
   const canSelect = !isPending && !isFailed;
-  
+
   let mergedScore = 0;
   if (p.ranked_forward_assignees && p.ranked_forward_assignees.length > 0) {
     const sumAvg = p.ranked_forward_assignees.reduce((acc: number, ra: any) => {
@@ -94,24 +94,24 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
   }
 
   return (
-    <div className={`flex flex-col border-b border-slate-700/50 ${isSelected ? 'bg-slate-800/50' : ''}`}>
+    <div className={`flex flex-col border-b border-slate-200/50 ${isSelected ? 'bg-slate-100' : ''}`}>
       {/* Main Row */}
       <div
-        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px_160px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-800/30' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
+        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-100' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
         onClick={() => canSelect && onSelect()}
       >
         {/* Checkbox Column */}
         <div className="px-3 py-4 flex items-center justify-center border-r border-slate-700/30" onClick={(e) => e.stopPropagation()}>
-          <input 
-            type="checkbox" 
-            checked={isChecked} 
-            onChange={() => onToggleCheck(p.patent_number)} 
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={() => onToggleCheck(p.patent_number)}
             disabled={!canSelect}
-            className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500" 
+            className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500"
           />
         </div>
         {/* Patent Number */}
-        <div className="px-4 py-4 font-medium text-indigo-300 truncate">
+        <div className="px-4 py-4 font-medium text-slate-500">
           {p.patent_number}
         </div>
 
@@ -119,7 +119,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
         <div className="px-4 py-4">
           {isPending ? (
             <div className="flex items-center gap-2 text-slate-500">
-              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-indigo-400"></div>
+              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-slate-400"></div>
               <span>Processing patent...</span>
             </div>
           ) : isFailed ? (
@@ -133,7 +133,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
             </div>
           ) : (
             <div>
-              <div className="font-semibold text-slate-200 line-clamp-2" title={p.title}>
+              <div className="font-semibold text-slate-600 line-clamp-2" title={p.title}>
                 {p.title || 'Untitled Patent'}
               </div>
               <div className="mt-1 flex items-center gap-2">
@@ -146,38 +146,191 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
         {/* Taxonomy */}
         <div className="px-4 py-4">
           {isPending || isFailed ? (
-            <span className="text-slate-600">-</span>
+            <span className="text-slate-800">-</span>
           ) : (
-            <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1.5">
+            <div className="flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar pr-1.5">
+
               {Object.entries(grouped).map(([domain, topics], dIdx) => (
-                <div key={dIdx} className="bg-slate-800/40 rounded p-1.5 border border-slate-700/60 shadow-sm">
-                  <div className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider mb-1 flex items-center gap-1 border-b border-slate-700/50 pb-0.5">
-                    <span className="w-1 h-1 rounded-full bg-indigo-400 inline-block"></span>
-                    {domain}
+
+                <div
+                  key={dIdx}
+                  className="
+        relative
+        pl-3
+      "
+                >
+
+                  {/* Domain */}
+                  <div
+                    className="
+          flex
+          items-center
+          justify-between
+
+          text-indigo-700
+          font-bold
+          text-[11px]
+          uppercase
+          tracking-wide
+
+          mb-1
+        "
+                  >
+
+                    <div className="flex items-center gap-2">
+
+                      <span
+                        className="
+              w-2
+              h-2
+              rounded-full
+              bg-indigo-500
+            "
+                      />
+
+                      {domain}
+
+                    </div>
+
+
+                    <span
+                      className="
+            text-[9px]
+            text-slate-500
+          "
+                    >
+                      {Object.keys(topics).length} topics
+                    </span>
+
+
                   </div>
-                  <div className="pl-1.5 space-y-1">
-                    {Object.entries(topics).map(([topic, subtopics], tIdx) => (
-                      <div key={tIdx} className="border-l border-slate-700 pl-1.5 py-0.5">
-                        <div className="text-[11px] font-semibold text-slate-300 flex items-center gap-1 leading-tight">
-                          <span className="text-slate-500 text-[10px]">└</span> {topic}
-                        </div>
-                        {subtopics.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-0.5 pl-2">
-                            {subtopics.map((sub, sIdx) => (
-                              <span key={sIdx} className="px-1.5 py-[1px] rounded text-[9px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 leading-none">
-                                {sub}
-                              </span>
-                            ))}
+
+
+
+                  {/* Topics */}
+                  <div
+                    className="
+          ml-1
+          border-l
+          border-slate-300
+          pl-3
+          flex
+          flex-col
+          gap-1.5
+        "
+                  >
+
+                    {Object.entries(topics).map(
+                      ([topic, subtopics], tIdx) => (
+
+                        <div
+                          key={tIdx}
+                          className="
+              relative
+            "
+                        >
+
+                          {/* Topic */}
+
+                          <div
+                            className="
+                flex
+                items-center
+                gap-2
+                text-[10px]
+                font-semibold
+                text-slate-700
+              "
+                          >
+
+                            <span
+                              className="
+                  absolute
+                  -left-[17px]
+                  w-2
+                  h-2
+                  rounded-full
+                  bg-slate-400
+                "
+                            />
+
+                            {topic}
+
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+
+
+                          {/* Subtopics */}
+
+                          {subtopics.length > 0 && (
+
+                            <div
+                              className="
+                  ml-3
+                  mt-1
+                  border-l
+                  border-slate-200
+                  pl-3
+
+                  flex
+                  flex-col
+                  gap-1
+                "
+                            >
+
+                              {subtopics.map(
+                                (sub, sIdx) => (
+
+                                  <div
+                                    key={sIdx}
+                                    className="
+                      relative
+                      text-[9px]
+                      text-emerald-700
+                    "
+                                  >
+
+                                    <span
+                                      className="
+                        absolute
+                        -left-[17px]
+                        top-1
+                        w-1.5
+                        h-1.5
+                        rounded-full
+                        bg-emerald-500
+                      "
+                                    />
+
+                                    {sub}
+
+                                  </div>
+
+                                ))}
+
+                            </div>
+
+                          )}
+
+                        </div>
+
+                      ))}
+
                   </div>
+
+
                 </div>
+
               ))}
+
+
+
               {Object.keys(grouped).length === 0 && (
-                <span className="text-slate-600 text-xs italic">-</span>
+                <span className="text-slate-800 text-xs italic">
+                  No data
+                </span>
               )}
+
             </div>
           )}
         </div>
@@ -219,12 +372,12 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
           ) : (
             <div className="flex items-center justify-center gap-3">
               <div className="flex flex-col items-center">
-                <span className="text-lg font-semibold text-emerald-400">{p.forward_citations?.length || 0}</span>
+                <span className="text-lg font-semibold text-emerald-600">{p.forward_citations?.length || 0}</span>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider">Fwd</span>
               </div>
               <div className="h-6 w-px bg-slate-700"></div>
               <div className="flex flex-col items-center">
-                <span className="text-lg font-semibold text-rose-400">{p.backward_citations?.length || 0}</span>
+                <span className="text-lg font-semibold text-rose-600">{p.backward_citations?.length || 0}</span>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider">Bwd</span>
               </div>
             </div>
@@ -236,11 +389,11 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
           {isPending || isFailed ? (
             <span className="text-slate-600">-</span>
           ) : (
-            <div className="flex flex-col items-center justify-center bg-slate-800/80 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner w-full max-w-[90px]">
-               <span className={`text-xl font-bold leading-none ${mergedScore >= 50 ? 'text-amber-400' : 'text-slate-400'}`}>
-                  {mergedScore.toFixed(1)}
-               </span>
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Score</span>
+            <div className="flex flex-col items-center justify-center bg-slate-200 rounded-lg px-4 py-1.5 border border-slate-700/60 shadow-inner w-full max-w-[90px]">
+              <span className={`text-xl font-bold leading-none ${mergedScore >= 50 ? 'text-amber-700' : 'text-slate-500'}`}>
+                {mergedScore.toFixed(1)}
+              </span>
+              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Score</span>
             </div>
           )}
         </div>
@@ -287,7 +440,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
 
 export default function ResultsTable({ patents, selectedForExport, onToggleExport, onSelectAll, sortBy, onSortByChange, infringementJobs, onViewInfringement, onStartInfringement }: { patents: any[]; selectedForExport: Set<string>; onToggleExport: (id: string) => void; onSelectAll: () => void; sortBy: 'topic' | 'subtopic'; onSortByChange: (val: 'topic' | 'subtopic') => void; infringementJobs?: Map<string, { job_id: string; status: string; result?: any }>; onViewInfringement?: (patent_number: string, result: any) => void; onStartInfringement?: (patent_number: string) => void; }) {
   const [selectedPatent, setSelectedPatent] = useState<any | null>(null);
-  
+
   const sortedPatents = useMemo(() => {
     return [...patents].sort((a, b) => {
       const getMergedScore = (p: any) => {
@@ -299,7 +452,7 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
         const kyp = p.kyp_score != null ? p.kyp_score : 0;
         return (kyp * 0.5) + (avgScore * 10 * 0.5);
       };
-      
+
       return getMergedScore(b) - getMergedScore(a);
     });
   }, [patents, sortBy]);
@@ -328,9 +481,9 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
 
   if (!patents || patents.length === 0) {
     return (
-      <div className="w-full bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col items-center justify-center h-[calc(100vh-200px)]">
-        <Ghost size={48} className="text-slate-600 mb-4 opacity-50" />
-        <h3 className="text-lg font-bold text-slate-400">No patents match your search</h3>
+      <div className="w-full bg-slate-100 rounded-lg overflow-hidden flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+        <Ghost size={48} className="text-slate-700 mb-4 opacity-50" />
+        <h3 className="text-lg font-bold text-slate-500">No patents match your search</h3>
         <p className="text-sm text-slate-500 mt-2">Try adjusting your search terms.</p>
       </div>
     );
@@ -338,15 +491,15 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
 
   return (
     <>
-      <div className="w-full bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
+      <div className="w-full bg-white rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
         {/* Sticky Header */}
-        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px_160px] text-xs uppercase bg-slate-800 text-slate-400 shrink-0 border-b border-slate-700 items-center">
+        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-100 text-slate-700 shrink-0 border-b border-slate-700 items-center">
           <div className="px-3 py-3 flex items-center justify-center border-r border-slate-700/30">
-            <input 
-              type="checkbox" 
-              checked={patents.length > 0 && selectedForExport.size === patents.filter((p: any) => p.status !== 'pending' && p.status !== 'failed').length} 
-              onChange={onSelectAll} 
-              className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500" 
+            <input
+              type="checkbox"
+              checked={patents.length > 0 && selectedForExport.size === patents.filter((p: any) => p.status !== 'pending' && p.status !== 'failed').length}
+              onChange={onSelectAll}
+              className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500"
             />
           </div>
           <div className="px-4 py-3 font-semibold">Patent No</div>
@@ -355,16 +508,16 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
           <div className="px-4 py-3 font-semibold">Standards</div>
           <div className="px-4 py-3 font-semibold text-center">Citations</div>
           <div className="px-4 py-3 font-semibold text-center flex flex-col items-center justify-center border-l border-slate-700/50">
-            <span className="text-amber-400 mb-1">Ranked Score</span>
+            <span className="text-slate-500 mb-1">Ranked Score</span>
             <div className="flex items-center gap-1 bg-slate-900/50 rounded px-1.5 py-0.5 w-fit">
-              <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">By:</span>
+              <span className="text-[9px] uppercase tracking-wider text-slate-100 font-bold">By:</span>
               <select
-                className="bg-transparent text-[10px] text-amber-300 font-bold outline-none border-none cursor-pointer text-center"
+                className="bg-transparent text-[10px] text-slate-100 font-bold outline-none border-none cursor-pointer text-center"
                 value={sortBy}
                 onChange={(e) => onSortByChange(e.target.value as 'topic' | 'subtopic')}
               >
-                <option className="bg-slate-800 text-amber-300" value="topic">Topic</option>
-                <option className="bg-slate-800 text-amber-300" value="subtopic">Subtopic</option>
+                <option className="bg-slate-200 text-slate-700" value="topic">Topic</option>
+                <option className="bg-slate-200 text-slate-700" value="subtopic">Subtopic</option>
               </select>
             </div>
           </div>

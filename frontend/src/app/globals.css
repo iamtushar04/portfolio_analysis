@@ -10,6 +10,7 @@
   --color-surface: rgba(30, 41, 59, 0.7);
   --color-surface-hover: rgba(30, 41, 59, 0.9);
   --color-border: rgba(255, 255, 255, 0.1);
+  --animate-fadeIn: fadeIn 0.3s ease-in
 }
 
 body {
@@ -39,14 +40,24 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: .7; }
 }
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+/* ::-webkit-scrollbar-track {
+  background: rgba(113, 206, 114, 0.5);
 }
 ::-webkit-scrollbar-thumb {
   background: rgba(99, 102, 241, 0.5);
@@ -54,4 +65,4 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(99, 102, 241, 0.8);
-}
+} */

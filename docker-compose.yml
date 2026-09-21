@@ -1,9 +1,6 @@
 version: '3.8'
 
 services:
-  # We are using the external Postgres and Redis on the remote server, 
-  # so we do not need to spin up local containers for them.
-
   postgres:
     image: postgres:15-alpine
     container_name: portfolio_postgres
