@@ -377,7 +377,140 @@ const SessionDetail = () => {
                 )}
                 <ExcelPreview sessionId={sessionId} />
 
-                {/* Export */}
+            </button>
+          </>
+
+        )}
+      <ExcelPreview sessionId={sessionId}/>
+
+
+        {/* Export */}
+        
+
+      </div>
+
+    </div>
+
+  </div>
+</header>
+<section className='mx-auto container'>
+      {/* Progress Bar */}
+      {data.status === 'processing' && (
+        <div className="mb-8 bg-white p-6 rounded-xl">
+          <div className="flex justify-between text-sm mb-2 font-medium">
+            <span className="text-slate-700">Processing Patents...</span>
+            <span className="text-slate-600">{data.processed_patents} / {data.total_patents} ({progressPercentage}%)</span>
+          </div>
+
+          {/* KYP Batch Progress */}
+          <div className="flex-1">
+            <div className="flex justify-between text-sm mb-2 font-medium">
+              <span className="text-amber-600">KYP Batch Scoring</span>
+              <span className="text-slate-500 capitalize">{data.kyp_status || 'Pending'}</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+              {data.kyp_status === 'completed' ? (
+                 <div className="bg-emerald-700 h-3 w-full" />
+              ) : data.kyp_status === 'processing' || data.kyp_status === 'pending' ? (
+                 <div className="bg-gradient-to-r from-salte-500 to-salte-700 h-3 w-full animate-pulse" />
+              ) : data.kyp_status === 'error' ? (
+                 <div className="bg-rose-500 h-3 w-full" />
+              ) : (
+                 <div className="bg-slate-700 h-3 w-full" />
+              )}
+            </div>
+          </div>
+          
+        </div>
+
+        {/* KYP waiting banner — only shown when Celery is 100% done but KYP is still running */}
+        {progressPercentage === 100 && session.kyp_status !== 'completed' && session.kyp_status !== 'error' && (
+          <div className="mb-6 flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-4 text-amber-300 text-sm">
+            <svg className="animate-spin h-4 w-4 shrink-0 text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H4z"></path>
+            </svg>
+            <span>
+              <strong>Patent data enrichment is complete!</strong> KYP batch scoring is still running in the background — scores will appear automatically when finished. Please do not close this tab.
+            </span>
+          </div>
+        )}
+        </>
+      )}
+      </section>
+      <section className='mx-auto container'>
+      {/* Empty State */}
+      {data.status === 'pending' && (
+        <div className='min-h-screen pt-5'>
+        <div className="bg-white rounded-xl border border-dashed border-slate-600 p-20 text-center">
+          <UploadCloud size={48} className="mx-auto text-slate-500 mb-4" />
+          <h3 className="text-xl font-medium text-slate-500 mb-2">Upload your Patent List</h3>
+          <p className="text-slate-500 max-w-md mx-auto mb-6">
+            Upload an Excel (.xlsx) file containing patent numbers in the first column to begin the automated analysis pipeline.
+          </p>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="text-slate-500 hover:text-slate-600 font-medium hover:underline cursor-pointer"
+          >
+            Click to Browse Files
+          </button>
+        </div>
+        </div>
+      )}
+      </section>
+      <section className='mx-auto container'>
+      {/* Results Table */}
+      <div className='min-h-screen pt-5'>
+      {(data.status === 'processing' || data.status === 'completed') && (
+        <div className="glass-panel rounded-xl overflow-hidden shadow-2xl">
+          {(() => {
+            const patentsList = data.patents || [];
+            const filteredPatents = patentsList.filter((p: any) => 
+              p.patent_number?.toLowerCase().includes(globalSearch.toLowerCase()) || 
+              p.title?.toLowerCase().includes(globalSearch.toLowerCase()) ||
+              (p.assignees && p.assignees.join(' ').toLowerCase().includes(globalSearch.toLowerCase()))
+            );
+            return <ResultsTable 
+              patents={filteredPatents} 
+              selectedForExport={selectedForExport}
+              onToggleExport={handleToggleExport}
+              onSelectAll={() => {
+                const exportable = filteredPatents.filter((p: any) => p.status !== 'pending' && p.status !== 'failed');
+                if (selectedForExport.size === exportable.length && exportable.length > 0) {
+                  setSelectedForExport(new Set());
+                } else {
+                  setSelectedForExport(new Set(exportable.map((p: any) => p.patent_number)));
+                }
+              }}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
+            />;
+          })()}
+        </div>
+      )}
+      </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-white mb-2">{selectedForExport.size > 0 ? "Custom Export" : "Export Configuration"}</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              {selectedForExport.size > 0 
+                ? `You have selected ${selectedForExport.size} patent(s). They will be ranked by ${sortBy === 'topic' ? 'Topic' : 'Subtopic'}.`
+                : "Would you like to translate foreign company names (Assignees, Competitors) to English?"}
+            </p>
+            
+            <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-800 transition-colors mb-6">
+              <input 
+                type="checkbox" 
+                className="w-5 h-5 rounded border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-slate-900"
+                checked={translateExport}
+                onChange={(e) => setTranslateExport(e.target.checked)}
+              />
+              <div>
+                <div className="text-white font-medium">Translate to English</div>
+                <div className="text-xs text-slate-500">Uses AI to translate Chinese/Japanese names</div>
               </div>
             </div>
           </div>
