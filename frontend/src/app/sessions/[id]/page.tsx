@@ -170,7 +170,9 @@ export default function SessionDetail() {
 
   return (
     <>
-    <header className="bg-white container mx-auto w-full px-4 md:px-8 py-3">
+    
+    <main className='w-full bg-white px-4 md:px-8 pt-5 pb-4'>
+      <header className="bg-white mx-auto container w-full px-4 md:px-8 py-1">
   <div className="rounded-2xl bg-white shadow-md px-4 py-3">
 
     <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
@@ -234,9 +236,9 @@ export default function SessionDetail() {
                 capitalize
                 ${
                   data.status === "completed"
-                    ? "text-emerald-400"
+                    ? "text-emerald-600"
                     : data.status === "processing"
-                    ? "text-yellow-400"
+                    ? "text-yellow-500"
                     : "text-red-400"
                 }
               `}
@@ -363,24 +365,24 @@ export default function SessionDetail() {
 
   </div>
 </header>
-    <main className='w-full bg-white px-4 md:px-8 pt-12 pb-4'>
+<section className='mx-auto container'>
       {/* Progress Bar */}
       {data.status === 'processing' && (
         <div className="mb-8 bg-white p-6 rounded-xl">
           <div className="flex justify-between text-sm mb-2 font-medium">
-            <span className="text-slate-400">Processing Patents...</span>
-            <span className="text-slate-300">{data.processed_patents} / {data.total_patents} ({progressPercentage}%)</span>
+            <span className="text-slate-700">Processing Patents...</span>
+            <span className="text-slate-600">{data.processed_patents} / {data.total_patents} ({progressPercentage}%)</span>
           </div>
 
           {/* KYP Batch Progress */}
           <div className="flex-1">
             <div className="flex justify-between text-sm mb-2 font-medium">
-              <span className="text-amber-300">KYP Batch Scoring</span>
-              <span className="text-slate-300 capitalize">{data.kyp_status || 'Pending'}</span>
+              <span className="text-amber-600">KYP Batch Scoring</span>
+              <span className="text-slate-500 capitalize">{data.kyp_status || 'Pending'}</span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
               {data.kyp_status === 'completed' ? (
-                 <div className="bg-emerald-500 h-3 w-full" />
+                 <div className="bg-emerald-700 h-3 w-full" />
               ) : data.kyp_status === 'processing' || data.kyp_status === 'pending' ? (
                  <div className="bg-gradient-to-r from-salte-500 to-salte-700 h-3 w-full animate-pulse" />
               ) : data.kyp_status === 'error' ? (
@@ -393,9 +395,11 @@ export default function SessionDetail() {
           
         </div>
       )}
-
+      </section>
+      <section className='mx-auto container'>
       {/* Empty State */}
       {data.status === 'pending' && (
+        <div className='min-h-screen pt-5'>
         <div className="bg-white rounded-xl border border-dashed border-slate-600 p-20 text-center">
           <UploadCloud size={48} className="mx-auto text-slate-500 mb-4" />
           <h3 className="text-xl font-medium text-slate-500 mb-2">Upload your Patent List</h3>
@@ -409,9 +413,12 @@ export default function SessionDetail() {
             Click to Browse Files
           </button>
         </div>
+        </div>
       )}
-
+      </section>
+      <section className='mx-auto container'>
       {/* Results Table */}
+      <div className='min-h-screen pt-5'>
       {(data.status === 'processing' || data.status === 'completed') && (
         <div className="glass-panel rounded-xl overflow-hidden shadow-2xl">
           {(() => {
@@ -439,6 +446,7 @@ export default function SessionDetail() {
           })()}
         </div>
       )}
+      </div>
 
       {/* Export Modal */}
       {showExportModal && (
@@ -482,6 +490,7 @@ export default function SessionDetail() {
           </div>
         </div>
       )}
+      </section>
       </main>
       </>
   );

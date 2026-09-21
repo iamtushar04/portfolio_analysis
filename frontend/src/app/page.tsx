@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, FolderOpen, LogOut, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -19,7 +19,6 @@ export default function Home() {
   data,
   isLoading,
   isError,
-  error,
   refetch
 } = useQuery({
   queryKey: ["sessions"],
@@ -51,16 +50,22 @@ const createMutaion = useMutation({
     queryClient.invalidateQueries({
       queryKey: ["sessions"]
     })
+    toast.success("Session created Successfully")
   },
-  onError: (error) => {
-    toast.error(error.message);
+  
+
+  onError: () => {
+    toast.error("Something went wrong");
   }
 
 })
   
-if (isError) {
-  toast.error(error.message)
-}
+useEffect(() => {
+  if (isError) {
+    toast.error("Something went wrong");
+  }
+}, [isError]);
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.setItem("isAuth", "false");
@@ -68,37 +73,30 @@ if (isError) {
   };
 
 
-  const executeCreateSession = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSessionName.trim()) return;
-    
-    setIsCreateModalOpen(false);
-    const loadingToast = toast.loading('Creating session...');
-    
-    try {
-      const res = await CreateSession(newSessionName.trim());
-      if (res && res.id) {
-        toast.success('Session created successfully!', { id: loadingToast });
-        refetch();
-        router.push(`/sessions/${res.id}`);
-      } else {
-        toast.error('Session created but ID missing', { id: loadingToast });
-      }
-    } catch (error: any) {
-      toast.error('Failed to create session', { id: loadingToast });
-      if (error?.response?.status === 401) {
-        localStorage.removeItem("token");
-        router.push("/login");
-      }
-    }
-  };
+  const executeCreateSession = (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!newSessionName.trim()) return;
+
+  setIsCreateModalOpen(false);
+
+  createMutaion.mutate(newSessionName.trim());
+};
 
   
 
   return (
     <main className="min-h-screen bg-white text-slate-100 px-6 py-10 relative">
 
-  <div className="absolute top-8 right-8 z-50">
+  
+
+
+  <div className="max-w-7xl mx-auto relative">
+
+
+    {/* Header */}
+    <header className="flex flex-col md:flex-row justify-between md:items-end gap-6">
+      <div className="absolute top-8 right-8 z-50">
   <button
     type="button"
     onClick={handleLogout}
@@ -134,12 +132,6 @@ if (isError) {
   </button>
 </div>
 
-
-  <div className="max-w-7xl mx-auto relative">
-
-
-    {/* Header */}
-    <header className="flex flex-col md:flex-row justify-between md:items-end gap-6">
 
       <div>
 
@@ -198,7 +190,6 @@ if (isError) {
 
       <button
         onClick={() => {
-          createMutaion.mutate(data.id)
           setIsCreateModalOpen(true);
         }}
         className="
@@ -405,7 +396,7 @@ data.map((s:any)=>(
             
             focus-within:ring-2
             focus-within:ring-slate-700
-            outline-none text-slate-700"
+            outline-none text-slate-700 transition"
             placeholder="e.g. Q3 Telecomm Patents"
             required
             />
@@ -427,7 +418,7 @@ data.map((s:any)=>(
               rounded-lg
               text-slate-700
               hover:bg-slate-200
-              bg-white">
+              bg-white cursor-pointer">
                 Cancel
               </button>
 
@@ -436,13 +427,12 @@ data.map((s:any)=>(
               type="submit"
               disabled={!newSessionName.trim()}
               className="
-              px-6
+              px-4
               py-2
               rounded-lg
-              bg-white
-              text-slate-800
+              text-slate-700
               hover:bg-slate-200
-              disabled:opacity-50">
+              bg-white cursor-pointer">
                 Create
               </button>
 

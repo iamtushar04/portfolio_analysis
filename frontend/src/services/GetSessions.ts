@@ -1,15 +1,6 @@
-const Api_url = process.env.NEXT_PUBLIC_API_URL;
+import Api from "./Api";
 export const GetSessions = async () => {
-    const response = await fetch(`${Api_url}/api/sessions/`, {
-        method: "GET",
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-        },
-    })
+    const response = await Api.get(`/api/sessions/`)
 
-    if (!response.ok) {
-        throw new Error("Something went wrong");
-    }
-
-    return response.json(); 
+    return response.data; 
 }

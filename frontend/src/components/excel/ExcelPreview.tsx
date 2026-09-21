@@ -124,10 +124,10 @@ export default function ExcelPreview({
           hover:bg-slate-100
           cursor-pointer
           px-4 py-2
-          rounded-lg
-        "
+          rounded-xl
+      "
       >
-        <FileSpreadsheet size={18} />
+        <FileSpreadsheet size={18} color="white" fill="green"/>
 
         {loading ? "Loading..." : "Preview Excel"}
       </button>

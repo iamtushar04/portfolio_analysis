@@ -111,7 +111,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
           />
         </div>
         {/* Patent Number */}
-        <div className="px-4 py-4 font-medium text-indigo-700">
+        <div className="px-4 py-4 font-medium text-slate-500">
           {p.patent_number}
         </div>
 
@@ -119,7 +119,7 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck }
         <div className="px-4 py-4">
           {isPending ? (
             <div className="flex items-center gap-2 text-slate-500">
-              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-indigo-400"></div>
+              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-slate-400"></div>
               <span>Processing patent...</span>
             </div>
           ) : isFailed ? (

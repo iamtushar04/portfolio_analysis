@@ -322,7 +322,7 @@ export default function PatentDetailDrawer({ patent, onClose }: PatentDetailDraw
                           {filteredFwdComp.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                               {filteredFwdComp.map((c: string, i: number) => (
-                                <span key={i} className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-xs text-emerald-300 border border-emerald-500/25 font-medium hover:bg-emerald-500/20 transition-colors">
+                                <span key={i} className="px-2.5 py-1 rounded-full bg-emerald-600 text-xs text-white border border-emerald-500/25 font-medium hover:bg-salte-100 transition-colors">
                                   {c}
                                 </span>
                               ))}

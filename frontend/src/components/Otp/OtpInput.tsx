@@ -48,7 +48,7 @@ const OtpInput = ({ register, setValue, errors }: { register: any, setValue: any
           key={index}
           type="text"
           maxLength={1}
-          className="relative z-20 w-12 h-12 text-center text-lg bg-slate-900 border border-slate-600 text-white rounded-xl shadow-inner outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+          className="relative z-20 w-12 h-12 text-center text-lg bg-slate-100 border border-slate-600 text-slate-600 rounded-xl shadow-inner outline-none focus:ring-2 focus:ring-slate-600 transition-all"
           {...register(`otp[${index}]`, { required: true })}
           ref={(el) => { inputsRef.current[index] = el; }}
           onChange={(e) => handleChange(e, index)}
