@@ -11,12 +11,11 @@ interface ExcelPreviewProps {
 
 interface ExcelSheet {
   name: string;
+
   data: any[];
 }
 
-const ExcelPreview = ({
-  sessionId,
-}: ExcelPreviewProps) => {
+const ExcelPreview = ({ sessionId }: ExcelPreviewProps) => {
   const [open, setOpen] = useState(false);
   const [sheets, setSheets] = useState<ExcelSheet[]>([]);
   const [activeSheet, setActiveSheet] = useState(0);
@@ -42,19 +41,18 @@ const ExcelPreview = ({
         type: "array",
       });
 
-      const excelSheets: ExcelSheet[] =
-        workbook.SheetNames.map((sheetName) => {
-          const worksheet = workbook.Sheets[sheetName];
+      const excelSheets: ExcelSheet[] = workbook.SheetNames.map((sheetName) => {
+        const worksheet = workbook.Sheets[sheetName];
 
-          const data = XLSX.utils.sheet_to_json(worksheet, {
-            defval: "",
-          });
-
-          return {
-            name: sheetName,
-            data,
-          };
+        const data = XLSX.utils.sheet_to_json(worksheet, {
+          defval: "",
         });
+
+        return {
+          name: sheetName,
+          data,
+        };
+      });
 
       setSheets(excelSheets);
       setActiveSheet(0);
@@ -86,9 +84,7 @@ const ExcelPreview = ({
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = translate
-        ? "export_translated.xlsx"
-        : "export.xlsx";
+      link.download = translate ? "export_translated.xlsx" : "export.xlsx";
 
       document.body.appendChild(link);
 
@@ -127,7 +123,7 @@ const ExcelPreview = ({
           rounded-xl
       "
       >
-        <FileSpreadsheet size={18} color="white" fill="green"/>
+        <FileSpreadsheet size={18} color="white" fill="green" />
 
         {loading ? "Loading..." : "Preview Excel"}
       </button>
@@ -278,9 +274,7 @@ const ExcelPreview = ({
               >
                 <Download size={18} />
 
-                {downloading
-                  ? "Downloading..."
-                  : "Download Excel"}
+                {downloading ? "Downloading..." : "Download Excel"}
               </button>
             </div>
           </div>
@@ -322,8 +316,8 @@ const ExcelPreview = ({
 
             {/* Modal Content */}
             <p className="text-sm text-gray-600 mb-6">
-              Would you like to translate the Excel content to English
-              before downloading?
+              Would you like to translate the Excel content to English before
+              downloading?
             </p>
 
             {/* Buttons */}
@@ -367,5 +361,5 @@ const ExcelPreview = ({
       )}
     </>
   );
-}
+};
 export default ExcelPreview;
