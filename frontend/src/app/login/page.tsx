@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
@@ -7,7 +6,8 @@ import Image from "next/image";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import axios from "axios";
 import OtpInput from "@/components/OtpInput";
-import { config } from "../../config";
+import { config } from "@/config";
+
 
 // Using a basic Spinner component directly inline
 const Spinner = () => (
@@ -289,7 +289,6 @@ const Login = () => {
                 setValue={setValue}
                 errors={errors}
               />
-
               {errors?.otp && (
                 <p className="text-red-500 text-xs -mt-3">OTP is required.</p>
               )}
