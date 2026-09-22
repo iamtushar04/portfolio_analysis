@@ -1,15 +1,22 @@
 "use client";
-import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
-import { UploadCloud, ArrowLeft, RefreshCw, Download, Search, FileSpreadsheet } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
-import { toast } from 'react-hot-toast';
-import ResultsTable from '../../../components/PatentDetails';
-import { config } from '../../../config';
-import { BarLoader } from 'react-spinners';
+import React, { useState, useRef, useEffect } from "react";
+import axios from "axios";
+import {
+  UploadCloud,
+  ArrowLeft,
+  RefreshCw,
+  Download,
+  Search,
+  FileSpreadsheet,
+} from "lucide-react";
+import { useRouter, useParams } from "next/navigation";
+import { toast } from "react-hot-toast";
+import PatentDetails from "@/components/PatentDetails";
+import { config } from "@/config";
+import { BarLoader } from "react-spinners";
 import { useQuery } from "@tanstack/react-query";
-import { GetSessionById } from "../../../services/GetSessionById";
-import ExcelPreview from '@/components/ExcelPreview';
+import { GetSessionById } from "@/services/GetSessionById";
+import ExcelPreview from "@/components/ExcelPreview";
 
 const API_BASE = config.API_URL;
 
@@ -21,8 +28,10 @@ export default function SessionDetail() {
   const [globalSearch, setGlobalSearch] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
   const [translateExport, setTranslateExport] = useState(true);
-  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<'topic' | 'subtopic'>('subtopic');
+  const [selectedForExport, setSelectedForExport] = useState<Set<string>>(
+    new Set(),
+  );
+  const [sortBy, setSortBy] = useState<"topic" | "subtopic">("subtopic");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -52,36 +61,49 @@ export default function SessionDetail() {
     try {
       const token = localStorage.getItem("token");
       const kypUserId = localStorage.getItem("user_id");
-      await axios.post(`${API_BASE}/api/sessions/${sessionId}/upload`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`,
-          "x-kyp-user-id": kypUserId || "1"
-        }
+      await axios.post(
+        `${API_BASE}/api/sessions/${sessionId}/upload`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+            "x-kyp-user-id": kypUserId || "1",
+          },
+        },
+      );
+      toast.success("Upload successful! Processing started.", {
+        id: loadingToast,
       });
-      toast.success("Upload successful! Processing started.", { id: loadingToast });
       refetch();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Upload failed", { id: loadingToast });
+      toast.error(err.response?.data?.detail || "Upload failed", {
+        id: loadingToast,
+      });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   // FIX: deduplicated download logic shared by both export handlers
-  const downloadBlobResponse = (response: any, fallbackName: string, toastId: string, successMsg: string) => {
+  const downloadBlobResponse = (
+    response: any,
+    fallbackName: string,
+    toastId: string,
+    successMsg: string,
+  ) => {
     const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
 
-    const contentDisposition = response.headers['content-disposition'];
+    const contentDisposition = response.headers["content-disposition"];
     let filename = fallbackName;
-    if (contentDisposition && contentDisposition.indexOf('filename=') !== -1) {
-      filename = contentDisposition.split('filename=')[1].replace(/['"]/g, '');
+    if (contentDisposition && contentDisposition.indexOf("filename=") !== -1) {
+      filename = contentDisposition.split("filename=")[1].replace(/['"]/g, "");
     }
 
-    link.setAttribute('download', filename);
+    link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -91,24 +113,31 @@ export default function SessionDetail() {
 
   const handleExport = (translate: boolean) => {
     setShowExportModal(false);
-    const exportToast = toast.loading(translate ? "Translating names & generating export..." : "Generating export...");
+    const exportToast = toast.loading(
+      translate
+        ? "Translating names & generating export..."
+        : "Generating export...",
+    );
 
     const token = localStorage.getItem("token");
-    axios.get(`${API_BASE}/api/sessions/${sessionId}/export`, {
-      params: { translate, sort_by: sortBy },
-      headers: { Authorization: `Bearer ${token}` },
-      responseType: 'blob'
-    }).then(response => {
-      downloadBlobResponse(
-        response,
-        `${data?.name || 'session'}_export.xlsx`,
-        exportToast,
-        "Export downloaded!"
-      );
-    }).catch(err => {
-      console.error("Export failed", err);
-      toast.error("Failed to export session.", { id: exportToast });
-    });
+    axios
+      .get(`${API_BASE}/api/sessions/${sessionId}/export`, {
+        params: { translate, sort_by: sortBy },
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: "blob",
+      })
+      .then((response) => {
+        downloadBlobResponse(
+          response,
+          `${data?.name || "session"}_export.xlsx`,
+          exportToast,
+          "Export downloaded!",
+        );
+      })
+      .catch((err) => {
+        console.error("Export failed", err);
+        toast.error("Failed to export session.", { id: exportToast });
+      });
   };
 
   const handleCustomExport = (translate: boolean) => {
@@ -117,27 +146,36 @@ export default function SessionDetail() {
       return;
     }
     setShowExportModal(false);
-    const exportToast = toast.loading(translate ? "Translating & Ranking..." : "Generating Ranked Export...");
+    const exportToast = toast.loading(
+      translate ? "Translating & Ranking..." : "Generating Ranked Export...",
+    );
 
     const token = localStorage.getItem("token");
-    axios.post(`${API_BASE}/api/sessions/${sessionId}/export_custom`, {
-      patent_ids: Array.from(selectedForExport),
-      sort_by: sortBy
-    }, {
-      params: { translate },
-      headers: { Authorization: `Bearer ${token}` },
-      responseType: 'blob'
-    }).then(response => {
-      downloadBlobResponse(
-        response,
-        `${data?.name || 'session'}_custom_export.xlsx`,
-        exportToast,
-        "Custom Export downloaded!"
-      );
-    }).catch(err => {
-      console.error("Custom Export failed", err);
-      toast.error("Failed to export custom session.", { id: exportToast });
-    });
+    axios
+      .post(
+        `${API_BASE}/api/sessions/${sessionId}/export_custom`,
+        {
+          patent_ids: Array.from(selectedForExport),
+          sort_by: sortBy,
+        },
+        {
+          params: { translate },
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "blob",
+        },
+      )
+      .then((response) => {
+        downloadBlobResponse(
+          response,
+          `${data?.name || "session"}_custom_export.xlsx`,
+          exportToast,
+          "Custom Export downloaded!",
+        );
+      })
+      .catch((err) => {
+        console.error("Custom Export failed", err);
+        toast.error("Failed to export custom session.", { id: exportToast });
+      });
   };
 
   const handleToggleExport = (id: string) => {
@@ -148,67 +186,69 @@ export default function SessionDetail() {
   };
 
   // --- Loading state ---
-  if (isLoading) return (
-    <main className="min-h-screen flex justify-center items-center bg-white">
-      <div className='flex flex-col gap-5 items-center'>
-        <BarLoader color='red' />
-        <p className="text-slate-700 font-semibold animate-pulse">Loading Session...</p>
-      </div>
-    </main>
-  );
+  if (isLoading)
+    return (
+      <main className="min-h-screen flex justify-center items-center bg-white">
+        <div className="flex flex-col gap-5 items-center">
+          <BarLoader color="red" />
+          <p className="text-slate-700 font-semibold animate-pulse">
+            Loading Session...
+          </p>
+        </div>
+      </main>
+    );
 
   // FIX: dedicated error screen instead of falling through and rendering "not found"
-  if (isError) return (
-    <main className='min-h-screen bg-white flex justify-center items-center'>
-      <div className="p-20 text-center text-red-400">
-        <p className="text-xl font-bold mb-2">Failed to load session.</p>
-        <p className="text-sm text-slate-500 mb-4">{error?.message}</p>
-        <button
-          onClick={() => router.push('/')}
-          className="cursor-pointer flex items-center justify-center gap-2 mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm"
-        >
-          <ArrowLeft size={15} color='red' />
-          <span>Back to Sessions</span>
-        </button>
-      </div>
-    </main>
-  );
+  if (isError)
+    return (
+      <main className="min-h-screen bg-white flex justify-center items-center">
+        <div className="p-20 text-center text-red-400">
+          <p className="text-xl font-bold mb-2">Failed to load session.</p>
+          <p className="text-sm text-slate-500 mb-4">{error?.message}</p>
+          <button
+            onClick={() => router.push("/")}
+            className="cursor-pointer flex items-center justify-center gap-2 mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm"
+          >
+            <ArrowLeft size={15} color="red" />
+            <span>Back to Sessions</span>
+          </button>
+        </div>
+      </main>
+    );
 
-  if (!data) return (
-    <main className='min-h-screen bg-white flex justify-center items-center'>
-      <div className="p-20 text-center text-red-400">
-        <p className="text-xl font-bold mb-2">Session not found.</p>
-        <p className="text-sm text-slate-500 mb-4">Session ID: {sessionId}</p>
-        <button
-          onClick={() => router.push('/')}
-          className="cursor-pointer flex items-center justify-center gap-2 mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm"
-        >
-          <ArrowLeft size={15} color='red' />
-          <span>Back to Sessions</span>
-        </button>
-      </div>
-    </main>
-  );
+  if (!data)
+    return (
+      <main className="min-h-screen bg-white flex justify-center items-center">
+        <div className="p-20 text-center text-red-400">
+          <p className="text-xl font-bold mb-2">Session not found.</p>
+          <p className="text-sm text-slate-500 mb-4">Session ID: {sessionId}</p>
+          <button
+            onClick={() => router.push("/")}
+            className="cursor-pointer flex items-center justify-center gap-2 mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm"
+          >
+            <ArrowLeft size={15} color="red" />
+            <span>Back to Sessions</span>
+          </button>
+        </div>
+      </main>
+    );
 
-  const progressPercentage = data.total_patents > 0
-    ? Math.round((data.processed_patents / data.total_patents) * 100)
-    : 0;
+  const progressPercentage =
+    data.total_patents > 0
+      ? Math.round((data.processed_patents / data.total_patents) * 100)
+      : 0;
 
   const patentsList: any[] = data.patents || [];
   const hasPatents = patentsList.length > 0;
 
   return (
-    <main className='w-full bg-white px-4 md:px-8 pt-5 pb-4'>
-
+    <main className="w-full bg-white px-4 md:px-8 pt-5 pb-4">
       {/* ============ Header ============ */}
       <header className="bg-white mx-auto container w-full px-4 md:px-2 py-1">
         <div className="rounded-2xl bg-white px-4 py-3">
-
           <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
-
             {/* Left Section */}
             <div className="flex items-center gap-4">
-
               {/* Back Button */}
               <button
                 onClick={() => router.push("/")}
@@ -236,7 +276,10 @@ export default function SessionDetail() {
                 </h1>
 
                 {data.status === "processing" && (
-                  <RefreshCw size={20} className="text-yellow-400 animate-spin" />
+                  <RefreshCw
+                    size={20}
+                    className="text-yellow-400 animate-spin"
+                  />
                 )}
 
                 {/* Status */}
@@ -249,8 +292,8 @@ export default function SessionDetail() {
                         data.status === "completed"
                           ? "text-emerald-600"
                           : data.status === "processing"
-                          ? "text-yellow-500"
-                          : "text-red-400"
+                            ? "text-yellow-500"
+                            : "text-red-400"
                       }
                     `}
                   >
@@ -261,16 +304,18 @@ export default function SessionDetail() {
                 {/* Patent Count */}
                 <span className="flex items-center gap-2 px-3 py-1 rounded-full text-sm text-slate-500 bg-slate-100 border border-slate-300">
                   Patents:
-                  <strong className="text-slate-500">{data.total_patents}</strong>
+                  <strong className="text-slate-500">
+                    {data.total_patents}
+                  </strong>
                 </span>
               </div>
             </div>
 
             {/* Right Section */}
             <div className="flex items-center gap-3">
-
               {/* Search */}
-              {(data.status === "completed" || data.status === "processing") && (
+              {(data.status === "completed" ||
+                data.status === "processing") && (
                 <div
                   className="
                     flex items-center gap-2
@@ -329,15 +374,14 @@ export default function SessionDetail() {
               <ExcelPreview sessionId={sessionId} />
 
               {/* FIX: Export button was missing — the modal existed but nothing opened it */}
-              
             </div>
           </div>
         </div>
       </header>
 
       {/* ============ Processing Progress ============ */}
-      <section className='mx-auto container'>
-        {data.status === 'processing' && (
+      <section className="mx-auto container">
+        {data.status === "processing" && (
           // FIX: was a syntax error — two siblings inside "&&" plus an illegal "//" JSX
           // comment. Wrapped both in a Fragment and removed the bad comment.
           <>
@@ -345,7 +389,8 @@ export default function SessionDetail() {
               <div className="flex justify-between text-sm mb-2 font-medium">
                 <span className="text-slate-700">Processing Patents...</span>
                 <span className="text-slate-600">
-                  {data.processed_patents} / {data.total_patents} ({progressPercentage}%)
+                  {data.processed_patents} / {data.total_patents} (
+                  {progressPercentage}%)
                 </span>
               </div>
 
@@ -353,15 +398,18 @@ export default function SessionDetail() {
               <div className="flex-1 mt-4">
                 <div className="flex justify-between text-sm mb-2 font-medium">
                   <span className="text-amber-600">KYP Batch Scoring</span>
-                  <span className="text-slate-500 capitalize">{data.kyp_status || 'Pending'}</span>
+                  <span className="text-slate-500 capitalize">
+                    {data.kyp_status || "Pending"}
+                  </span>
                 </div>
                 <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
-                  {data.kyp_status === 'completed' ? (
+                  {data.kyp_status === "completed" ? (
                     <div className="bg-emerald-700 h-3 w-full" />
-                  ) : data.kyp_status === 'processing' || data.kyp_status === 'pending' ? (
+                  ) : data.kyp_status === "processing" ||
+                    data.kyp_status === "pending" ? (
                     // FIX: typo "salte" → "slate" (gradient classes were never applying)
                     <div className="bg-gradient-to-r from-slate-500 to-slate-700 h-3 w-full animate-pulse" />
-                  ) : data.kyp_status === 'error' ? (
+                  ) : data.kyp_status === "error" ? (
                     <div className="bg-rose-500 h-3 w-full" />
                   ) : (
                     <div className="bg-slate-700 h-3 w-full" />
@@ -396,9 +444,10 @@ export default function SessionDetail() {
                     />
                   </svg>
                   <span>
-                    <strong>Patent data enrichment is complete!</strong>{" "}
-                    KYP batch scoring is still running in the background — scores will
-                    appear automatically when finished. Please do not close this tab.
+                    <strong>Patent data enrichment is complete!</strong> KYP
+                    batch scoring is still running in the background — scores
+                    will appear automatically when finished. Please do not close
+                    this tab.
                   </span>
                 </div>
               )}
@@ -407,15 +456,17 @@ export default function SessionDetail() {
       </section>
 
       {/* ============ Empty State ============ */}
-      <section className='mx-auto container'>
-        {data.status === 'pending' && (
-          <div className='min-h-screen pt-5'>
+      <section className="mx-auto container">
+        {data.status === "pending" && (
+          <div className="min-h-screen pt-5">
             <div className="bg-white rounded-xl border border-dashed border-slate-600 p-20 text-center">
               <UploadCloud size={48} className="mx-auto text-slate-500 mb-4" />
-              <h3 className="text-xl font-medium text-slate-500 mb-2">Upload your Patent List</h3>
+              <h3 className="text-xl font-medium text-slate-500 mb-2">
+                Upload your Patent List
+              </h3>
               <p className="text-slate-500 max-w-md mx-auto mb-6">
-                Upload an Excel (.xlsx) file containing patent numbers in the first column to
-                begin the automated analysis pipeline.
+                Upload an Excel (.xlsx) file containing patent numbers in the
+                first column to begin the automated analysis pipeline.
               </p>
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -429,29 +480,44 @@ export default function SessionDetail() {
       </section>
 
       {/* ============ Results + Export Modal ============ */}
-      <section className='mx-auto container'>
-        <div className='min-h-screen pt-5'>
-          {(data.status === 'processing' || data.status === 'completed') && (
+      <section className="mx-auto container">
+        <div className="min-h-screen pt-5">
+          {(data.status === "processing" || data.status === "completed") && (
             <div className="glass-panel rounded-xl overflow-hidden shadow-2xl">
               {(() => {
-                const filteredPatents = patentsList.filter((p: any) =>
-                  p.patent_number?.toLowerCase().includes(globalSearch.toLowerCase()) ||
-                  p.title?.toLowerCase().includes(globalSearch.toLowerCase()) ||
-                  (p.assignees && p.assignees.join(' ').toLowerCase().includes(globalSearch.toLowerCase()))
+                const filteredPatents = patentsList.filter(
+                  (p: any) =>
+                    p.patent_number
+                      ?.toLowerCase()
+                      .includes(globalSearch.toLowerCase()) ||
+                    p.title
+                      ?.toLowerCase()
+                      .includes(globalSearch.toLowerCase()) ||
+                    (p.assignees &&
+                      p.assignees
+                        .join(" ")
+                        .toLowerCase()
+                        .includes(globalSearch.toLowerCase())),
                 );
                 return (
-                  <ResultsTable
+                  <PatentDetails
                     patents={filteredPatents}
                     selectedForExport={selectedForExport}
                     onToggleExport={handleToggleExport}
                     onSelectAll={() => {
                       const exportable = filteredPatents.filter(
-                        (p: any) => p.status !== 'pending' && p.status !== 'failed'
+                        (p: any) =>
+                          p.status !== "pending" && p.status !== "failed",
                       );
-                      if (selectedForExport.size === exportable.length && exportable.length > 0) {
+                      if (
+                        selectedForExport.size === exportable.length &&
+                        exportable.length > 0
+                      ) {
                         setSelectedForExport(new Set());
                       } else {
-                        setSelectedForExport(new Set(exportable.map((p: any) => p.patent_number)));
+                        setSelectedForExport(
+                          new Set(exportable.map((p: any) => p.patent_number)),
+                        );
                       }
                     }}
                     sortBy={sortBy}
@@ -468,11 +534,13 @@ export default function SessionDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative">
               <h3 className="text-xl font-bold text-white mb-2">
-                {selectedForExport.size > 0 ? "Custom Export" : "Export Configuration"}
+                {selectedForExport.size > 0
+                  ? "Custom Export"
+                  : "Export Configuration"}
               </h3>
               <p className="text-slate-400 text-sm mb-6">
                 {selectedForExport.size > 0
-                  ? `You have selected ${selectedForExport.size} patent(s). They will be ranked by ${sortBy === 'topic' ? 'Topic' : 'Subtopic'}.`
+                  ? `You have selected ${selectedForExport.size} patent(s). They will be ranked by ${sortBy === "topic" ? "Topic" : "Subtopic"}.`
                   : "Would you like to translate foreign company names (Assignees, Competitors) to English?"}
               </p>
 
@@ -484,8 +552,12 @@ export default function SessionDetail() {
                   onChange={(e) => setTranslateExport(e.target.checked)}
                 />
                 <div>
-                  <div className="text-white font-medium">Translate to English</div>
-                  <div className="text-xs text-slate-500">Uses AI to translate Chinese/Japanese names</div>
+                  <div className="text-white font-medium">
+                    Translate to English
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Uses AI to translate Chinese/Japanese names
+                  </div>
                 </div>
               </label>
 

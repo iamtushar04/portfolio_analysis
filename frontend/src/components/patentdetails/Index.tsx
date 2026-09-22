@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Users, ExternalLink, Ghost, ArrowDownWideNarrow } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
-import PatentDrawer from "../PatentDrawer";
+import PatentDrawer from "@/components/PatentDrawer";
 
 function AssigneeList({
   assignees,

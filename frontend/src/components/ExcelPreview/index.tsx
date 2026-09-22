@@ -101,7 +101,6 @@ const ExcelPreview = ({ sessionId }: ExcelPreviewProps) => {
   };
 
   const currentSheet = sheets[activeSheet];
-
   const columns = currentSheet?.data?.length
     ? Object.keys(currentSheet.data[0])
     : [];

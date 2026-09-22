@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import "@/app/globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,9 +19,13 @@ export const metadata: Metadata = {
 
 import AuthGuard from "../ProtectedAuth/AuthGuard";
 import { Toaster } from "react-hot-toast";
-import QueryProvider from "./../providers/QueryProvider";
+import QueryProvider from "@/providers/QueryProvider";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
@@ -29,17 +33,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col">
         <QueryProvider>
-        <Toaster position="top-center" toastOptions={{
-          style: {
-            background: '#1e293b',
-            color: '#fff',
-            border: '1px solid rgba(99, 102, 241, 0.2)',
-          },
-        }} />
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              style: {
+                background: "#1e293b",
+                color: "#fff",
+                border: "1px solid rgba(99, 102, 241, 0.2)",
+              },
+            }}
+          />
 
-        <AuthGuard>
-          {children}
-        </AuthGuard>
+          <AuthGuard>{children}</AuthGuard>
         </QueryProvider>
       </body>
     </html>
