@@ -84,20 +84,22 @@ function PatentRow({ p, isSelected, onSelect, sortBy, isChecked, onToggleCheck, 
   const canSelect = !isPending && !isFailed;
 
   let mergedScore = 0;
+  let avgScore = 0;
   if (p.ranked_forward_assignees && p.ranked_forward_assignees.length > 0) {
     const sumAvg = p.ranked_forward_assignees.reduce((acc: number, ra: any) => {
       return acc + (sortBy === 'topic' ? (ra.topic_avg || 0) : (ra.subtopic_avg || 0));
     }, 0);
-    const avgScore = sumAvg / p.ranked_forward_assignees.length;
-    const kyp = p.kyp_score != null ? p.kyp_score : 0;
-    mergedScore = (kyp * 0.5) + (avgScore * 10 * 0.5);
+    avgScore = sumAvg / p.ranked_forward_assignees.length;
   }
+  const kyp = p.kyp_score != null ? p.kyp_score : 0;
+  mergedScore = (kyp * 0.5) + (avgScore * 10 * 0.5);
 
   return (
     <div className={`flex flex-col border-b border-slate-200/50 ${isSelected ? 'bg-slate-100' : ''}`}>
       {/* Main Row */}
       <div
-        className={`grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] items-center transition-colors text-sm text-slate-300 ${canSelect ? 'cursor-pointer hover:bg-slate-100' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
+        style={{ gridTemplateColumns: '40px 160px minmax(200px,2fr) minmax(180px,1.5fr) minmax(120px,1fr) 120px 140px 160px' }}
+        className={`grid items-center transition-colors text-sm text-slate-700 ${canSelect ? 'cursor-pointer hover:bg-slate-100' : 'cursor-default'} ${isSelected ? 'border-l-2 border-indigo-500' : ''}`}
         onClick={() => canSelect && onSelect()}
       >
         {/* Checkbox Column */}
@@ -493,7 +495,10 @@ export default function ResultsTable({ patents, selectedForExport, onToggleExpor
     <>
       <div className="w-full bg-white rounded-lg border border-slate-700/50 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
         {/* Sticky Header */}
-        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px] text-xs uppercase bg-slate-100 text-slate-700 shrink-0 border-b border-slate-700 items-center">
+        <div 
+          style={{ gridTemplateColumns: '40px 160px minmax(200px,2fr) minmax(180px,1.5fr) minmax(120px,1fr) 120px 140px 160px' }}
+          className="grid text-xs uppercase bg-slate-100 text-slate-700 shrink-0 border-b border-slate-700 items-center"
+        >
           <div className="px-3 py-3 flex items-center justify-center border-r border-slate-700/30">
             <input
               type="checkbox"

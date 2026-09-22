@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { UploadCloud, ArrowLeft, RefreshCw, Download, Search, ShieldAlert } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
@@ -37,6 +37,42 @@ export default function SessionDetail() {
     queryKey: ["session", sessionId],
     queryFn: () => GetSessionById(sessionId),
   })
+
+  // On load: restore already-cached infringement results from the DB so that
+  // navigating back to this page shows the correct "completed" pill and result.
+  useEffect(() => {
+    if (!data?.patents) return;
+
+    const cachedPatents = data.patents.filter(
+      (p: any) => p.has_cached_infringement && !infringementJobs.has(p.patent_number)
+    );
+    if (cachedPatents.length === 0) return;
+
+    const token = localStorage.getItem('token');
+    cachedPatents.forEach(async (p: any) => {
+      try {
+        const res = await axios.post(`${API_BASE}/api/sessions/infringement/start`, {
+          patent_number: p.patent_number,
+        }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.data.status === 'completed') {
+          setInfringementJobs(prev => {
+            const next = new Map(prev);
+            next.set(p.patent_number, {
+              job_id: res.data.job_id,
+              status: 'completed',
+              result: res.data.result,
+            });
+            return next;
+          });
+        }
+      } catch (e) {
+        console.warn(`Could not restore cached infringement for ${p.patent_number}`, e);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.patents]);
 
   // Poll running infringement jobs every 5 seconds
   useEffect(() => {
@@ -130,6 +166,13 @@ export default function SessionDetail() {
   const progressPercentage = data.total_patents > 0
     ? Math.round((data.processed_patents / data.total_patents) * 100)
     : 0;
+
+  const isCeleryDone = data.status === 'completed' || data.status === 'failed';
+  const isKypDone = data.kyp_status === 'completed' || data.kyp_status === 'error';
+  const isFullyFinished = isCeleryDone && isKypDone;
+  const displayStatus = isFullyFinished 
+    ? (data.status === 'failed' && data.kyp_status === 'error' ? 'failed' : 'completed') 
+    : 'processing';
 
   const handleExport = (translate: boolean) => {
     setShowExportModal(false);
@@ -294,7 +337,7 @@ export default function SessionDetail() {
                   </h1>
 
 
-                  {data.status === "processing" && (
+                  {displayStatus === "processing" && (
                     <RefreshCw
                       size={20}
                       className="text-yellow-400 animate-spin"
@@ -318,15 +361,15 @@ export default function SessionDetail() {
                     <strong
                       className={`
                 capitalize
-                ${data.status === "completed"
+                ${displayStatus === "completed"
                           ? "text-emerald-600"
-                          : data.status === "processing"
+                          : displayStatus === "processing"
                             ? "text-yellow-500"
                             : "text-red-400"
                         }
               `}
                     >
-                      {data.status}
+                      {displayStatus}
                     </strong>
 
                   </span>
@@ -362,8 +405,7 @@ export default function SessionDetail() {
 
 
                 {/* Search */}
-                {(data.status === "completed" ||
-                  data.status === "processing") && (
+                {isFullyFinished && (
 
                     <div
                       className="
@@ -438,6 +480,38 @@ export default function SessionDetail() {
                 )}
                 <ExcelPreview sessionId={sessionId} />
 
+                {/* Infringement Analysis Button */}
+                {isFullyFinished && (
+                  <button
+                    className="
+                      flex items-center gap-2
+                      bg-rose-600
+                      hover:bg-rose-500
+                      text-white
+                      px-4 py-2
+                      rounded-xl
+                      font-medium
+                      transition
+                      cursor-pointer
+                      shadow-md shadow-rose-600/20
+                    "
+                    onClick={() => {
+                      if (selectedForExport.size === 0) {
+                        toast.error("Please select a patent first.");
+                        return;
+                      }
+                      if (selectedForExport.size > 1) {
+                        toast.error("Please select only one patent for Infringement Analysis.");
+                        return;
+                      }
+                      const patentId = Array.from(selectedForExport)[0];
+                      handleStartInfringement(patentId);
+                    }}
+                  >
+                    <ShieldAlert size={18} />
+                    Infringement Analysis
+                  </button>
+                )}
 
                 {/* Export */}
 
@@ -477,9 +551,10 @@ export default function SessionDetail() {
               </div>
 
             </div>
+          )}
 
-        {/* KYP waiting banner — only shown when Celery is 100% done but KYP is still running */}
-          {progressPercentage === 100 && session.kyp_status !== 'completed' && session.kyp_status !== 'error' && (
+          {/* KYP waiting banner — only shown when Celery is 100% done but KYP is still running */}
+          {progressPercentage === 100 && data.kyp_status !== 'completed' && data.kyp_status !== 'error' && (
             <div className="mb-6 flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-4 text-amber-300 text-sm">
               <svg className="animate-spin h-4 w-4 shrink-0 text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -490,8 +565,6 @@ export default function SessionDetail() {
               </span>
             </div>
           )}
-        </>
-      )}
       </section>
       <section className='mx-auto container'>
         {/* Empty State */}

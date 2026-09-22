@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # External bulk analysis API endpoint
 INFRINGEMENT_API_URL = "http://135.181.19.83:8509/agents/bulk-analysis/infringement"
 
-async def run_infringement_job(job_id: str, patent_number: str):
+async def run_infringement_job(job_id: str, patent_number: str, auth_token: str = None):
     """
     Background task that calls the external infringement analysis API (takes 4-10 mins)
     and stores the result in Redis so the frontend can poll it.
@@ -31,9 +31,13 @@ async def run_infringement_job(job_id: str, patent_number: str):
         
         logger.info(f"[{job_id}] Starting infringement analysis for patent {patent_number}")
         
+        headers = {}
+        if auth_token:
+            headers["Authorization"] = auth_token
+        
         # 15 minute timeout (900 seconds) since API takes 4-10 minutes
         async with httpx.AsyncClient(timeout=900.0) as client:
-            response = await client.post(INFRINGEMENT_API_URL, json=payload)
+            response = await client.post(INFRINGEMENT_API_URL, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
             

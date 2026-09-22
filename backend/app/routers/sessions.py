@@ -322,6 +322,7 @@ class InfringementStartRequest(BaseModel):
 def start_infringement_analysis(
     payload: InfringementStartRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: DBSession = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
@@ -340,7 +341,8 @@ def start_infringement_analysis(
         }
         
     from ..services.infringement_service import run_infringement_job
-    background_tasks.add_task(run_infringement_job, job_id, payload.patent_number)
+    auth_token = request.headers.get("Authorization")
+    background_tasks.add_task(run_infringement_job, job_id, payload.patent_number, auth_token)
     return {"job_id": job_id}
 
 @router.get("/infringement/{job_id}/status")
