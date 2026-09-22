@@ -1,16 +1,33 @@
 import { defineConfig, globalIgnores } from "eslint/config";
+
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+
+import importPlugin from "eslint-plugin-import";
+import reactPlugin from "eslint-plugin-react";
+import reactHooksPlugin from "eslint-plugin-react-hooks";
+import unusedImportsPlugin from "eslint-plugin-unused-imports";
+
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
 
-  // Custom rules
   {
+    plugins: {
+      import: importPlugin,
+      react: reactPlugin,
+      "react-hooks": reactHooksPlugin,
+      "unused-imports": unusedImportsPlugin,
+    },
+
     rules: {
-      // Prevent unused variables
-      "@typescript-eslint/no-unused-vars": [
+      // ==========================
+      // Unused imports
+      // ==========================
+      "unused-imports/no-unused-imports": "error",
+
+      "unused-imports/no-unused-vars": [
         "warn",
         {
           argsIgnorePattern: "^_",
@@ -18,7 +35,38 @@ const eslintConfig = defineConfig([
         },
       ],
 
-      // Allow console during development
+
+      // ==========================
+      // Import rules
+      // ==========================
+      "import/order": [
+        "warn",
+        {
+          groups: [
+            "builtin",
+            "external",
+            "internal",
+            "parent",
+            "sibling",
+            "index",
+          ],
+          "newlines-between": "always",
+        },
+      ],
+
+
+      // ==========================
+      // React rules
+      // ==========================
+      "react/jsx-uses-react": "off",
+      "react/react-in-jsx-scope": "off",
+
+      "react-hooks/exhaustive-deps": "warn",
+
+
+      // ==========================
+      // General rules
+      // ==========================
       "no-console": [
         "warn",
         {
@@ -26,19 +74,13 @@ const eslintConfig = defineConfig([
         },
       ],
 
-      // React best practices
-      "react-hooks/exhaustive-deps": "warn",
-
-      // Prevent accidental debugger statements
       "no-debugger": "error",
 
-      // Require semicolons
       "semi": [
         "error",
         "always",
       ],
 
-      // Use single quotes
       "quotes": [
         "error",
         "single",
@@ -49,6 +91,7 @@ const eslintConfig = defineConfig([
     },
   },
 
+
   globalIgnores([
     ".next/**",
     "out/**",
@@ -57,5 +100,6 @@ const eslintConfig = defineConfig([
     "node_modules/**",
   ]),
 ]);
+
 
 export default eslintConfig;
