@@ -179,10 +179,7 @@ interface PatentDetailDrawerProps {
   onClose: () => void;
 }
 
-export default function PatentDetailDrawer({
-  patent,
-  onClose,
-}: PatentDetailDrawerProps) {
+const PatentDrawer = ({ patent, onClose }: PatentDetailDrawerProps) => {
   const fwdCompRef = useRef<HTMLDivElement>(null);
   const bwdCompRef = useRef<HTMLDivElement>(null);
   const fwdCitRef = useRef<HTMLDivElement>(null);
@@ -918,4 +915,5 @@ export default function PatentDetailDrawer({
       </div>
     </>
   );
-}
+};
+export default PatentDrawer;

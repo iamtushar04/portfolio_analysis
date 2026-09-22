@@ -4,12 +4,12 @@ import axios from 'axios';
 import { UploadCloud, ArrowLeft, RefreshCw, Download, Search, FileSpreadsheet } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import ResultsTable from '../../../components/patentdetails/Index';
+import ResultsTable from '../../../components/PatentDetails';
 import { config } from '../../../config';
 import { BarLoader } from 'react-spinners';
 import { useQuery } from "@tanstack/react-query";
 import { GetSessionById } from "../../../services/GetSessionById";
-import ExcelPreview from '@/components/excel/Index';
+import ExcelPreview from '@/components/ExcelPreview';
 
 const API_BASE = config.API_URL;
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Users, ExternalLink, Ghost, ArrowDownWideNarrow } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
-import PatentDetailDrawer from "../PatentDrawer/Index";
+import PatentDrawer from "../PatentDrawer/Index";
 
 function AssigneeList({
   assignees,
@@ -415,7 +415,7 @@ function PatentRow({
   );
 }
 
-const ResultsTable = ({
+const PatentDetails = ({
   patents,
   selectedForExport,
   onToggleExport,
@@ -567,11 +567,11 @@ const ResultsTable = ({
       </div>
 
       {/* Slide-Out Drawer */}
-      <PatentDetailDrawer
+      <PatentDrawer
         patent={selectedPatent}
         onClose={() => setSelectedPatent(null)}
       />
     </>
   );
-}
-export default ResultsTable;
+};
+export default PatentDetails;
