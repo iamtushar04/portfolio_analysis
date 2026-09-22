@@ -61,11 +61,19 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
     # Check global cache for infringement analysis
     patent_numbers = [p.patent_number for p in patents]
     cached_patents = set()
+    running_patents = {}
     if patent_numbers:
         cache_records = db.query(schemas.InfringementAnalysisCache.patent_number).filter(
             schemas.InfringementAnalysisCache.patent_number.in_(patent_numbers)
         ).all()
         cached_patents = {record[0] for record in cache_records}
+        
+        # Check Redis for any running jobs
+        for p_num in patent_numbers:
+            job_id_bytes = redis_client.get(f"infringement_running:{p_num}")
+            if job_id_bytes:
+                # job_id is stored as plain string in this key
+                running_patents[p_num] = job_id_bytes.decode('utf-8') if isinstance(job_id_bytes, bytes) else job_id_bytes
     
     # Calculate processed count dynamically
     processed_count = sum(1 for p in patents if p.status in ("success", "failed"))
@@ -108,7 +116,8 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
                 "standard": p.standard,
                 "standard_links": p.standard_links,
                 "error_message": p.error_message,
-                "has_cached_infringement": p.patent_number in cached_patents
+                "has_cached_infringement": p.patent_number in cached_patents,
+                "running_infringement_job_id": running_patents.get(p.patent_number)
             } for p in patents
         ]
     }
@@ -317,6 +326,7 @@ def delete_session(session_id: str, background_tasks: BackgroundTasks, db: DBSes
 
 class InfringementStartRequest(BaseModel):
     patent_number: str
+    custom_instruction: Optional[str] = None
 
 @router.post("/infringement/start")
 def start_infringement_analysis(
@@ -342,7 +352,7 @@ def start_infringement_analysis(
         
     from ..services.infringement_service import run_infringement_job
     auth_token = request.headers.get("Authorization")
-    background_tasks.add_task(run_infringement_job, job_id, payload.patent_number, auth_token)
+    background_tasks.add_task(run_infringement_job, job_id, payload.patent_number, auth_token, payload.custom_instruction)
     return {"job_id": job_id}
 
 @router.get("/infringement/{job_id}/status")

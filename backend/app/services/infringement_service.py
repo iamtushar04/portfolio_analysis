@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # External bulk analysis API endpoint
 INFRINGEMENT_API_URL = "http://135.181.19.83:8509/agents/bulk-analysis/infringement"
 
-async def run_infringement_job(job_id: str, patent_number: str, auth_token: str = None):
+async def run_infringement_job(job_id: str, patent_number: str, auth_token: str = None, custom_instruction: str = None):
     """
     Background task that calls the external infringement analysis API (takes 4-10 mins)
     and stores the result in Redis so the frontend can poll it.
@@ -23,10 +23,12 @@ async def run_infringement_job(job_id: str, patent_number: str, auth_token: str 
             json.dumps({"status": "running"}), 
             ex=7200
         )
+        # Track which patent_number is running so the session API can report it on reload
+        redis_client.set(f"infringement_running:{patent_number}", job_id, ex=7200)
         
         payload = {
             "patent_numbers": [patent_number],
-            "custom_instructions": None
+            "custom_instructions": custom_instruction
         }
         
         logger.info(f"[{job_id}] Starting infringement analysis for patent {patent_number}")
@@ -71,6 +73,8 @@ async def run_infringement_job(job_id: str, patent_number: str, auth_token: str 
                 ex=7200
             )
             logger.info(f"[{job_id}] Infringement analysis completed for patent {patent_number}")
+            # Clean up the running tracker
+            redis_client.delete(f"infringement_running:{patent_number}")
             
     except Exception as e:
         logger.error(f"[{job_id}] Infringement analysis failed: {e}")
@@ -83,6 +87,8 @@ async def run_infringement_job(job_id: str, patent_number: str, auth_token: str 
             }),
             ex=7200
         )
+        # Clean up the running tracker on failure too
+        redis_client.delete(f"infringement_running:{patent_number}")
 
 def get_infringement_job_status(job_id: str):
     """

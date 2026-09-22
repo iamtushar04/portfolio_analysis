@@ -30,12 +30,21 @@ export default function SessionDetail() {
   const [sortBy, setSortBy] = useState<'topic' | 'subtopic'>('subtopic');
   const [infringementJobs, setInfringementJobs] = useState<Map<string, { job_id: string; status: string; result?: any }>>(new Map());
   const [openInfringementDrawer, setOpenInfringementDrawer] = useState<{ patent_number: string; result: any } | null>(null);
+  const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
+  const [customInstruction, setCustomInstruction] = useState("");
+  const [targetPatentId, setTargetPatentId] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-
   const { data, isLoading, isError, refetch, error } = useQuery({
     queryKey: ["session", sessionId],
     queryFn: () => GetSessionById(sessionId),
+    refetchOnWindowFocus: (query) => {
+      const currentData = query.state.data as any;
+      if (!currentData) return true;
+      const celeryDone = currentData.status === 'completed' || currentData.status === 'failed';
+      const kypDone = currentData.kyp_status === 'completed' || currentData.kyp_status === 'error';
+      return !(celeryDone && kypDone);
+    }
   })
 
   // On load: restore already-cached infringement results from the DB so that
@@ -43,9 +52,29 @@ export default function SessionDetail() {
   useEffect(() => {
     if (!data?.patents) return;
 
+    // 1. Restore completed jobs
     const cachedPatents = data.patents.filter(
       (p: any) => p.has_cached_infringement && !infringementJobs.has(p.patent_number)
     );
+    
+    // 2. Restore running jobs
+    const runningPatents = data.patents.filter(
+      (p: any) => p.running_infringement_job_id && !infringementJobs.has(p.patent_number)
+    );
+
+    if (runningPatents.length > 0) {
+      runningPatents.forEach((p: any) => {
+        setInfringementJobs(prev => {
+          const next = new Map(prev);
+          next.set(p.patent_number, {
+            job_id: p.running_infringement_job_id,
+            status: 'running',
+          });
+          return next;
+        });
+      });
+    }
+
     if (cachedPatents.length === 0) return;
 
     const token = localStorage.getItem('token');
@@ -248,7 +277,7 @@ export default function SessionDetail() {
     setSelectedForExport(next);
   };
 
-  const handleStartInfringement = async (patentId: string) => {
+  const openInfringementModal = (patentId: string) => {
     if (infringementJobs.has(patentId)) {
       const job = infringementJobs.get(patentId);
       if (job?.status === 'completed' && job.result) {
@@ -260,12 +289,18 @@ export default function SessionDetail() {
         return;
       }
     }
+    setTargetPatentId(patentId);
+    setCustomInstruction("");
+    setIsInstructionModalOpen(true);
+  };
 
+  const handleStartInfringement = async (patentId: string, customInstruction: string = "") => {
     const startToast = toast.loading("Starting Infringement Analysis...");
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(`${API_BASE}/api/sessions/infringement/start`, {
-        patent_number: patentId
+        patent_number: patentId,
+        custom_instruction: customInstruction || null
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -505,7 +540,7 @@ export default function SessionDetail() {
                         return;
                       }
                       const patentId = Array.from(selectedForExport)[0];
-                      handleStartInfringement(patentId);
+                      openInfringementModal(patentId);
                     }}
                   >
                     <ShieldAlert size={18} />
@@ -614,12 +649,49 @@ export default function SessionDetail() {
                   onSortByChange={setSortBy}
                   infringementJobs={infringementJobs}
                   onViewInfringement={(patent_number, result) => setOpenInfringementDrawer({ patent_number, result })}
-                  onStartInfringement={handleStartInfringement}
+                  onStartInfringement={openInfringementModal}
                 />;
               })()}
             </div>
           )}
         </div>
+
+        {/* Instruction Modal */}
+        {isInstructionModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-lg w-full relative animate-in fade-in zoom-in duration-200">
+              <h3 className="text-xl font-bold text-white mb-2">Start Infringement Analysis</h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Patent ID: <strong className="text-indigo-400">{targetPatentId}</strong>
+              </p>
+              
+              <textarea
+                className="w-full h-32 bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6 resize-none"
+                placeholder="Enter custom instructions for the AI (Optional)...&#10;e.g., 'Focus specifically on the communication protocols.'"
+                value={customInstruction}
+                onChange={(e) => setCustomInstruction(e.target.value)}
+              ></textarea>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+                  onClick={() => setIsInstructionModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-500/20 cursor-pointer"
+                  onClick={() => {
+                    setIsInstructionModalOpen(false);
+                    handleStartInfringement(targetPatentId, customInstruction);
+                  }}
+                >
+                  Start Analysis
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Export Modal */}
         {showExportModal && (
