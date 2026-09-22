@@ -432,5 +432,5 @@ gap-7 animate-fadeIn
       </div>
     </main>
   );
-}
+};
 export default Home;
