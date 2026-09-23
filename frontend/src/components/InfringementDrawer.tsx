@@ -46,6 +46,19 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
     const [cachedClaimCharts, setCachedClaimCharts] = React.useState<Record<number, any>>({});
     const [activeChartIdx, setActiveChartIdx] = React.useState<number | null>(null);
 
+    // Track active background jobs so we can resume polling if drawer is reopened
+    interface ClaimChartJob {
+        jobId: string;
+        indices: number[];
+    }
+    const [activeJobs, setActiveJobs] = React.useState<ClaimChartJob[]>(() => {
+        if (typeof window !== 'undefined' && patentNumber) {
+            const saved = localStorage.getItem(`claim_chart_jobs_${patentNumber}`);
+            if (saved) return JSON.parse(saved);
+        }
+        return [];
+    });
+
     // State to track which patent's state is currently loaded into memory.
     // We use useState instead of useRef so it batches with generatingProductIds updates!
     const [activePatentState, setActivePatentState] = React.useState<string | null>(null);
@@ -54,8 +67,9 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
     React.useEffect(() => {
         if (patentNumber && activePatentState === patentNumber) {
             localStorage.setItem(`generating_charts_${patentNumber}`, JSON.stringify(Array.from(generatingProductIds)));
+            localStorage.setItem(`claim_chart_jobs_${patentNumber}`, JSON.stringify(activeJobs));
         }
-    }, [generatingProductIds, patentNumber, activePatentState]);
+    }, [generatingProductIds, activeJobs, patentNumber, activePatentState]);
 
     // ── reset on close / patent change ───────
     React.useEffect(() => {
@@ -73,12 +87,19 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                 // Because we use useState for activePatentState, React batches these 3 updates into a single render.
                 setActivePatentState(patentNumber);
                 setGeneratingProductIds(new Set());
+                setActiveJobs([]);
                 setCachedClaimCharts({});
                 
                 // Restore generating state for this new patent
-                const saved = localStorage.getItem(`generating_charts_${patentNumber}`);
-                if (saved) {
-                    setGeneratingProductIds(new Set(JSON.parse(saved)));
+                const savedGenerating = localStorage.getItem(`generating_charts_${patentNumber}`);
+                if (savedGenerating) {
+                    setGeneratingProductIds(new Set(JSON.parse(savedGenerating)));
+                }
+
+                // Restore active background jobs for this new patent
+                const savedJobs = localStorage.getItem(`claim_chart_jobs_${patentNumber}`);
+                if (savedJobs) {
+                    setActiveJobs(JSON.parse(savedJobs));
                 }
             }
             
@@ -144,18 +165,46 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
         }
     };
 
-    // ── Resume polling if there are generating products ──
+    // ── Resume polling for active jobs ──
     React.useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isOpen && generatingProductIds.size > 0) {
-            interval = setInterval(() => {
-                fetchCachedCharts();
+        if (!isOpen || activeJobs.length === 0) return;
+        
+        const token = localStorage.getItem('token');
+        const intervals = activeJobs.map(job => {
+            return setInterval(async () => {
+                try {
+                    const statusRes = await axios.get(
+                        `${process.env.NEXT_PUBLIC_API_URL}/api/sessions/claim-chart/${job.jobId}/status`,
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    const statusData = statusRes.data;
+
+                    if (statusData.status === 'completed') {
+                        removeFromGenerating(job.indices);
+                        setActiveJobs(prev => prev.filter(j => j.jobId !== job.jobId));
+
+                        const newCharts: Record<number, any> = {};
+                        (statusData.result?.products_analysis || []).forEach((prodAnalysis: any) => {
+                            const pIdx = findProductIndex(prodAnalysis);
+                            if (pIdx !== -1) newCharts[pIdx] = prodAnalysis;
+                        });
+                        setCachedClaimCharts(prev => ({ ...prev, ...newCharts }));
+                        toast.success('Claim chart generated successfully!');
+                    } else if (statusData.status === 'error') {
+                        removeFromGenerating(job.indices);
+                        setActiveJobs(prev => prev.filter(j => j.jobId !== job.jobId));
+                        toast.error('Error generating claim chart: ' + statusData.error_message);
+                    }
+                } catch (err) {
+                    console.error('Background polling error', err);
+                }
             }, 5000);
-        }
+        });
+
         return () => {
-            if (interval) clearInterval(interval);
+            intervals.forEach(interval => clearInterval(interval));
         };
-    }, [isOpen, generatingProductIds.size, patentNumber]);
+    }, [isOpen, activeJobs, patentNumber]);
 
     if (!isOpen) return null;
 
@@ -210,37 +259,10 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
             );
 
             const jobId = startRes.data.job_id;
+            
+            // Add to active jobs, which will automatically trigger the background polling loop
+            setActiveJobs(prev => [...prev, { jobId, indices }]);
 
-            const pollInterval = setInterval(async () => {
-                try {
-                    const statusRes = await axios.get(
-                        `${process.env.NEXT_PUBLIC_API_URL}/api/sessions/claim-chart/${jobId}/status`,
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                    const statusData = statusRes.data;
-
-                    if (statusData.status === 'completed') {
-                        clearInterval(pollInterval);
-                        removeFromGenerating(indices);
-
-                        // map returned products back to their indices using robust fuzzy match
-                        const newCharts: Record<number, any> = {};
-                        (statusData.result?.products_analysis || []).forEach((prodAnalysis: any) => {
-                            const pIdx = findProductIndex(prodAnalysis);
-                            if (pIdx !== -1) newCharts[pIdx] = prodAnalysis;
-                        });
-
-                        setCachedClaimCharts(prev => ({ ...prev, ...newCharts }));
-                        toast.success('Claim chart generated successfully!');
-                    } else if (statusData.status === 'error') {
-                        clearInterval(pollInterval);
-                        removeFromGenerating(indices);
-                        toast.error('Error generating claim chart: ' + statusData.error_message);
-                    }
-                } catch (err) {
-                    console.error('Polling error', err);
-                }
-            }, 5000);
         } catch (error) {
             console.error('Failed to start generation', error);
             removeFromGenerating(indices);
