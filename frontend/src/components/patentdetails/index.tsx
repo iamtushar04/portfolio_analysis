@@ -114,7 +114,7 @@ function PatentRow({
 
   const canSelect = !isPending && !isFailed;
 
-  let mergedScore = 0;
+  let topicScore = 0;
   if (p.ranked_forward_assignees && p.ranked_forward_assignees.length > 0) {
     const sumAvg = p.ranked_forward_assignees.reduce((acc: number, ra: any) => {
       return (
@@ -122,9 +122,11 @@ function PatentRow({
       );
     }, 0);
     const avgScore = sumAvg / p.ranked_forward_assignees.length;
-    const kyp = p.kyp_score != null ? p.kyp_score : 0;
-    mergedScore = kyp * 0.5 + avgScore * 10 * 0.5;
+    topicScore = avgScore * 10;
   }
+
+  const kypScore = p.kyp_score != null ? p.kyp_score : 0;
+  const mergedScore = (kypScore * 0.5) + (topicScore * 0.5);
 
   return (
     <div
@@ -481,23 +483,23 @@ const PatentDetails = ({
   const sortedPatents = useMemo(() => {
     return [...patents].sort((a, b) => {
       const getMergedScore = (p: any) => {
-        if (
-          !p.ranked_forward_assignees ||
-          p.ranked_forward_assignees.length === 0
-        )
-          return 0;
-        const sumAvg = p.ranked_forward_assignees.reduce(
-          (acc: number, ra: any) => {
-            return (
-              acc +
-              (sortBy === "topic" ? ra.topic_avg || 0 : ra.subtopic_avg || 0)
-            );
-          },
-          0,
-        );
-        const avgScore = sumAvg / p.ranked_forward_assignees.length;
-        const kyp = p.kyp_score != null ? p.kyp_score : 0;
-        return kyp * 0.5 + avgScore * 10 * 0.5;
+        let topicScore = 0;
+        if (p.ranked_forward_assignees && p.ranked_forward_assignees.length > 0) {
+          const sumAvg = p.ranked_forward_assignees.reduce(
+            (acc: number, ra: any) => {
+              return (
+                acc +
+                (sortBy === "topic" ? ra.topic_avg || 0 : ra.subtopic_avg || 0)
+              );
+            },
+            0,
+          );
+          const avgScore = sumAvg / p.ranked_forward_assignees.length;
+          topicScore = avgScore * 10;
+        }
+
+        const kypScore = p.kyp_score != null ? p.kyp_score : 0;
+        return (kypScore * 0.5) + (topicScore * 0.5);
       };
 
       return getMergedScore(b) - getMergedScore(a);
