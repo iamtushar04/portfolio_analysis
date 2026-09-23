@@ -32,8 +32,8 @@ services:
       - ./backend/.env
     environment:
       # These explicitly override the 'localhost' variables defined in .env
-      DATABASE_URL: postgresql://postgres:wissen67@postgres:5432/portfolio_analysis
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://postgres:#123Wissen@135.181.19.83:5432/portfolio_analysis
+      REDIS_URL: redis://135.181.19.83:6379/6
     depends_on:
       - postgres
       - redis
@@ -48,8 +48,8 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://postgres:wissen67@postgres:5432/portfolio_analysis
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://postgres:#123Wissen@135.181.19.83:5432/portfolio_analysis
+      REDIS_URL: redis://135.181.19.83:6379/6
     depends_on:
       - backend
       - redis

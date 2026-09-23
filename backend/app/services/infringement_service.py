@@ -6,10 +6,12 @@ from ..redis_client import redis_client
 from ..database import SessionLocal
 from ..models.schemas import InfringementAnalysisCache
 
+from ..config import settings
+
 logger = logging.getLogger(__name__)
 
 # External bulk analysis API endpoint
-INFRINGEMENT_API_URL = "http://135.181.19.83:8509/agents/bulk-analysis/infringement"
+INFRINGEMENT_API_URL = f"{settings.AGENT_API_BASE_URL}/agents/bulk-analysis/infringement"
 
 async def run_infringement_job(job_id: str, patent_number: str, auth_token: str = None, custom_instruction: str = None):
     """

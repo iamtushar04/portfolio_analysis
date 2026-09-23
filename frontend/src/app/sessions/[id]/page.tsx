@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
-import PatentDetails from "@/components/patentdetails";
+import PatentDetails from "@/components/patentdetails/";
 import { config } from "@/config";
 import { BarLoader } from "react-spinners";
 import { useQuery } from "@tanstack/react-query";
@@ -67,7 +67,7 @@ export default function SessionDetail() {
     const cachedPatents = data.patents.filter(
       (p: any) => p.has_cached_infringement && !infringementJobs.has(p.patent_number)
     );
-    
+
     // 2. Restore running jobs
     const runningPatents = data.patents.filter(
       (p: any) => p.running_infringement_job_id && !infringementJobs.has(p.patent_number)
@@ -111,7 +111,7 @@ export default function SessionDetail() {
         console.warn(`Could not restore cached infringement for ${p.patent_number}`, e);
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.patents]);
 
   // Poll running infringement jobs every 5 seconds
@@ -441,12 +441,11 @@ export default function SessionDetail() {
                   <strong
                     className={`
                       capitalize
-                      ${
-                        data.status === "completed"
-                          ? "text-emerald-600"
-                          : data.status === "processing"
-                            ? "text-yellow-500"
-                            : "text-red-400"
+                      ${data.status === "completed"
+                        ? "text-emerald-600"
+                        : data.status === "processing"
+                          ? "text-yellow-500"
+                          : "text-red-400"
                       }
                     `}
                   >
@@ -469,8 +468,8 @@ export default function SessionDetail() {
               {/* Search */}
               {(data.status === "completed" ||
                 data.status === "processing") && (
-                <div
-                  className="
+                  <div
+                    className="
                     flex items-center gap-2
                     bg-slate-200
                     border border-slate-300
@@ -479,17 +478,17 @@ export default function SessionDetail() {
                     px-3 py-2
                     w-[260px]
                   "
-                >
-                  <Search size={16} className="text-slate-700" />
-                  <input
-                    type="text"
-                    placeholder="Search patents..."
-                    className="bg-transparent outline-none text-sm text-slate-500 w-full placeholder:text-slate-500"
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                  />
-                </div>
-              )}
+                  >
+                    <Search size={16} className="text-slate-700" />
+                    <input
+                      type="text"
+                      placeholder="Search patents..."
+                      className="bg-transparent outline-none text-sm text-slate-500 w-full placeholder:text-slate-500"
+                      value={globalSearch}
+                      onChange={(e) => setGlobalSearch(e.target.value)}
+                    />
+                  </div>
+                )}
 
               {/* Upload */}
               {data.status === "pending" && (
@@ -527,7 +526,7 @@ export default function SessionDetail() {
               <ExcelPreview sessionId={sessionId} />
 
               {/* Infringement Analysis Button */}
-              {data.status === "completed" && (
+              {(data.status === "completed" || data.status === "processing") && (
                 <button
                   className="
                     flex items-center gap-2
@@ -538,8 +537,7 @@ export default function SessionDetail() {
                     rounded-xl
                     font-medium
                     transition
-                    cursor-pointer
-                    shadow-md shadow-rose-600/20
+                    shadow-lg shadow-rose-600/20
                   "
                   onClick={() => {
                     if (selectedForExport.size === 0) {
@@ -709,18 +707,51 @@ export default function SessionDetail() {
                     sortBy={sortBy}
                     onSortByChange={setSortBy}
                     infringementJobs={infringementJobs}
-                    onViewInfringement={(patentId, result) => {
-                      setOpenInfringementDrawer({ patent_number: patentId, result });
-                    }}
-                    onStartInfringement={(patentId) => {
-                      openInfringementModal(patentId);
-                    }}
+                    onViewInfringement={(patent_number, result) => setOpenInfringementDrawer({ patent_number, result })}
+                    onStartInfringement={openInfringementModal}
                   />
                 );
               })()}
             </div>
           )}
         </div>
+
+        {/* Instruction Modal */}
+        {isInstructionModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-lg w-full relative animate-in fade-in zoom-in duration-200">
+              <h3 className="text-xl font-bold text-white mb-2">Start Infringement Analysis</h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Patent ID: <strong className="text-indigo-400">{targetPatentId}</strong>
+              </p>
+              
+              <textarea
+                className="w-full h-32 bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6 resize-none"
+                placeholder="Enter custom instructions for the AI (Optional)...&#10;e.g., 'Focus specifically on the communication protocols.'"
+                value={customInstruction}
+                onChange={(e) => setCustomInstruction(e.target.value)}
+              ></textarea>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+                  onClick={() => setIsInstructionModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-500/20 cursor-pointer"
+                  onClick={() => {
+                    setIsInstructionModalOpen(false);
+                    handleStartInfringement(targetPatentId, customInstruction);
+                  }}
+                >
+                  Start Analysis
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Export Modal */}
         {showExportModal && (
@@ -777,56 +808,6 @@ export default function SessionDetail() {
           </div>
         )}
       </section>
-
-      {/* Instruction Modal */}
-      {isInstructionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                <ShieldAlert size={18} className="text-rose-500" />
-                Infringement Analysis
-              </h3>
-            </div>
-            
-            <div className="px-6 py-5">
-              <p className="text-sm text-slate-600 mb-4">
-                You are about to run a deep infringement analysis for patent <strong className="text-slate-800">{targetPatentId}</strong>.
-              </p>
-              
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700">Custom Focus (Optional)</label>
-                <span className="text-xs text-slate-400">e.g., "Focus only on cloud computing aspects"</span>
-              </div>
-              <textarea
-                value={customInstruction}
-                onChange={(e) => setCustomInstruction(e.target.value)}
-                placeholder="Provide specific instructions or focus areas for the AI agent to consider during the analysis..."
-                className="w-full h-28 border border-slate-300 rounded-lg p-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none"
-              ></textarea>
-            </div>
-            
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-              <button
-                onClick={() => setIsInstructionModalOpen(false)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setIsInstructionModalOpen(false);
-                  handleStartInfringement(targetPatentId, customInstruction);
-                }}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-rose-600 text-white hover:bg-rose-500 transition-colors flex items-center gap-2 shadow-md shadow-rose-600/20"
-              >
-                <ShieldAlert size={14} />
-                Start Analysis
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Infringement Drawer */}
       <InfringementDrawer

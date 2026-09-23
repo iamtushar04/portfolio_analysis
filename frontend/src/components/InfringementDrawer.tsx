@@ -144,6 +144,19 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
         }
     };
 
+    // ── Resume polling if there are generating products ──
+    React.useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isOpen && generatingProductIds.size > 0) {
+            interval = setInterval(() => {
+                fetchCachedCharts();
+            }, 5000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isOpen, generatingProductIds.size, patentNumber]);
+
     if (!isOpen) return null;
 
     // ── helpers ──────────────────────────────
