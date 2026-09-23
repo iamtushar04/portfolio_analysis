@@ -462,6 +462,9 @@ const PatentDetails = ({
   onSelectAll,
   sortBy,
   onSortByChange,
+  infringementJobs,
+  onViewInfringement,
+  onStartInfringement,
 }: {
   patents: any[];
   selectedForExport: Set<string>;
@@ -469,6 +472,9 @@ const PatentDetails = ({
   onSelectAll: () => void;
   sortBy: "topic" | "subtopic";
   onSortByChange: (val: "topic" | "subtopic") => void;
+  infringementJobs?: Map<string, { job_id: string; status: string; result?: any }>;
+  onViewInfringement?: (patent_number: string, result: any) => void;
+  onStartInfringement?: (patent_number: string) => void;
 }) => {
   const [selectedPatent, setSelectedPatent] = useState<any | null>(null);
 
@@ -547,9 +553,9 @@ const PatentDetails = ({
               checked={
                 patents.length > 0 &&
                 selectedForExport.size ===
-                  patents.filter(
-                    (p: any) => p.status !== "pending" && p.status !== "failed",
-                  ).length
+                patents.filter(
+                  (p: any) => p.status !== "pending" && p.status !== "failed",
+                ).length
               }
               onChange={onSelectAll}
               className="cursor-pointer w-4 h-4 rounded bg-slate-800 accent-indigo-500"

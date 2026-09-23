@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
-import PatentDetails from "@/components/PatentDetails";
+import PatentDetails from "@/components/patentdetails";
 import { config } from "@/config";
 import { BarLoader } from "react-spinners";
 import { useQuery } from "@tanstack/react-query";
@@ -526,6 +526,39 @@ export default function SessionDetail() {
 
               <ExcelPreview sessionId={sessionId} />
 
+              {/* Infringement Analysis Button */}
+              {data.status === "completed" && (
+                <button
+                  className="
+                    flex items-center gap-2
+                    bg-rose-600
+                    hover:bg-rose-500
+                    text-white
+                    px-4 py-2
+                    rounded-xl
+                    font-medium
+                    transition
+                    cursor-pointer
+                    shadow-md shadow-rose-600/20
+                  "
+                  onClick={() => {
+                    if (selectedForExport.size === 0) {
+                      toast.error("Please select a patent first.");
+                      return;
+                    }
+                    if (selectedForExport.size > 1) {
+                      toast.error("Please select only one patent for Infringement Analysis.");
+                      return;
+                    }
+                    const patentId = Array.from(selectedForExport)[0];
+                    openInfringementModal(patentId);
+                  }}
+                >
+                  <ShieldAlert size={18} />
+                  Infringement Analysis
+                </button>
+              )}
+
               {/* FIX: Export button was missing — the modal existed but nothing opened it */}
             </div>
           </div>
@@ -675,6 +708,13 @@ export default function SessionDetail() {
                     }}
                     sortBy={sortBy}
                     onSortByChange={setSortBy}
+                    infringementJobs={infringementJobs}
+                    onViewInfringement={(patentId, result) => {
+                      setOpenInfringementDrawer({ patent_number: patentId, result });
+                    }}
+                    onStartInfringement={(patentId) => {
+                      openInfringementModal(patentId);
+                    }}
                   />
                 );
               })()}
@@ -737,6 +777,64 @@ export default function SessionDetail() {
           </div>
         )}
       </section>
+
+      {/* Instruction Modal */}
+      {isInstructionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                <ShieldAlert size={18} className="text-rose-500" />
+                Infringement Analysis
+              </h3>
+            </div>
+            
+            <div className="px-6 py-5">
+              <p className="text-sm text-slate-600 mb-4">
+                You are about to run a deep infringement analysis for patent <strong className="text-slate-800">{targetPatentId}</strong>.
+              </p>
+              
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700">Custom Focus (Optional)</label>
+                <span className="text-xs text-slate-400">e.g., "Focus only on cloud computing aspects"</span>
+              </div>
+              <textarea
+                value={customInstruction}
+                onChange={(e) => setCustomInstruction(e.target.value)}
+                placeholder="Provide specific instructions or focus areas for the AI agent to consider during the analysis..."
+                className="w-full h-28 border border-slate-300 rounded-lg p-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none"
+              ></textarea>
+            </div>
+            
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setIsInstructionModalOpen(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setIsInstructionModalOpen(false);
+                  handleStartInfringement(targetPatentId, customInstruction);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-rose-600 text-white hover:bg-rose-500 transition-colors flex items-center gap-2 shadow-md shadow-rose-600/20"
+              >
+                <ShieldAlert size={14} />
+                Start Analysis
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Infringement Drawer */}
+      <InfringementDrawer
+        isOpen={openInfringementDrawer !== null}
+        onClose={() => setOpenInfringementDrawer(null)}
+        patentNumber={openInfringementDrawer?.patent_number || null}
+        result={openInfringementDrawer?.result}
+      />
     </main>
   );
 }
