@@ -397,171 +397,302 @@ export default function SessionDetail() {
   return (
     <main className="w-full bg-white px-4 md:px-8 pt-5 pb-4">
       {/* ============ Header ============ */}
-      <header className="bg-white mx-auto container w-full px-4 md:px-2 py-1">
-        <div className="rounded-2xl bg-white px-4 py-3">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
-            {/* Left Section */}
-            <div className="flex items-center gap-4">
-              {/* Back Button */}
-              <button
-                onClick={() => router.push("/")}
-                className="
-                  flex gap-2 justify-center items-center
-                  text-sm font-medium
-                  text-slate-100
-                  border border-slate-200
-                  bg-[#b90000]
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+  <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3">
 
-                  transition
-                  px-3 py-1.5
-                  rounded-lg
-                  cursor-pointer
-                "
-              >
-                <ArrowLeft size={16} color="white" />
-                Back
-              </button>
+    <div className="
+      flex flex-col xl:flex-row
+      xl:items-center
+      justify-between
+      gap-4
+    ">
 
-              {/* Session Info */}
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-semibold text-gray-600 bg-white px-2 rounded-xl py-1">
-                  {data.name}
-                </h1>
+      {/* LEFT SECTION */}
+      <div className="
+        flex flex-wrap
+        items-center
+        gap-3
+        min-w-0
+      ">
 
-                {data.status === "processing" && (
-                  <RefreshCw
-                    size={20}
-                    className="text-yellow-400 animate-spin"
-                  />
-                )}
+        {/* Back Button */}
+        <button
+          onClick={() => router.push("/")}
+          className="
+            flex items-center gap-2
+            bg-[#b90000]
+            hover:bg-red-800
+            text-white
+            px-3 py-2
+            rounded-lg
+            text-sm
+            font-medium
+            transition
+            shrink-0
+          "
+        >
+          <ArrowLeft size={16}/>
+          <span className="hidden sm:inline">
+            Back
+          </span>
+        </button>
 
-                {/* Status */}
-                <span className="flex items-center gap-2 px-3 py-1 rounded-full text-sm text-slate-500 bg-slate-100 border border-slate-300">
-                  Status:
-                  <strong
-                    className={`
-                      capitalize
-                      ${data.status === "completed"
-                        ? "text-emerald-600"
-                        : data.status === "processing"
-                          ? "text-yellow-500"
-                          : "text-red-400"
-                      }
-                    `}
-                  >
-                    {data.status}
-                  </strong>
-                </span>
 
-                {/* Patent Count */}
-                <span className="flex items-center gap-2 px-3 py-1 rounded-full text-sm text-slate-500 bg-slate-100 border border-slate-300">
-                  Patents:
-                  <strong className="text-slate-500">
-                    {data.total_patents}
-                  </strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Right Section */}
-            <div className="flex items-center gap-3">
-              {/* Search */}
-              {(data.status === "completed" ||
-                data.status === "processing") && (
-                  <div
-                    className="
-                    flex items-center gap-2
-                    bg-slate-200
-                    border border-slate-300
-                    rounded-xl
-                    focus-within:ring-1 focus-within:ring-red-300
-                    px-3 py-2
-                    w-[260px]
-                  "
-                  >
-                    <Search size={16} className="text-slate-700" />
-                    <input
-                      type="text"
-                      placeholder="Search patents..."
-                      className="bg-transparent outline-none text-sm text-slate-500 w-full placeholder:text-slate-500"
-                      value={globalSearch}
-                      onChange={(e) => setGlobalSearch(e.target.value)}
-                    />
-                  </div>
-                )}
-
-              {/* Upload */}
-              {data.status === "pending" && (
-                <>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    accept=".xlsx,.xls"
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="
-                      flex items-center gap-2
-                      bg-emerald-500
-                      hover:bg-emerald-600
-                      active:bg-emerald-700
-                      text-white
-                      px-4 py-2
-                      rounded-xl
-                      font-medium
-                      transition
-                      cursor-pointer
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    "
-                  >
-                    <UploadCloud size={18} />
-                    {uploading ? "Uploading..." : "Upload"}
-                  </button>
-                </>
-              )}
-
-              <ExcelPreview sessionId={sessionId} />
-
-              {/* Infringement Analysis Button */}
-              {(data.status === "completed" || data.status === "processing") && (
-                <button
-                  className="
-                    flex items-center gap-2
-                    bg-rose-600
-                    hover:bg-rose-500
-                    text-white
-                    px-4 py-2
-                    rounded-xl
-                    font-medium
-                    transition
-                    shadow-lg shadow-rose-600/20
-                  "
-                  onClick={() => {
-                    if (selectedForExport.size === 0) {
-                      toast.error("Please select a patent first.");
-                      return;
-                    }
-                    if (selectedForExport.size > 1) {
-                      toast.error("Please select only one patent for Infringement Analysis.");
-                      return;
-                    }
-                    const patentId = Array.from(selectedForExport)[0];
-                    openInfringementModal(patentId);
-                  }}
-                >
-                  <ShieldAlert size={18} />
-                  Infringement Analysis
-                </button>
-              )}
-
-              {/* FIX: Export button was missing — the modal existed but nothing opened it */}
-            </div>
-          </div>
+        {/* Session Name */}
+        <div
+          className="
+            max-w-[220px]
+            sm:max-w-[320px]
+            truncate
+            text-lg
+            font-semibold
+            text-slate-700
+          "
+          title={data.name}
+        >
+          {data.name}
         </div>
-      </header>
+
+
+        {/* Processing */}
+        {data.status === "processing" && (
+          <RefreshCw
+            size={18}
+            className="text-amber-500 animate-spin shrink-0"
+          />
+        )}
+
+
+        {/* Status */}
+        <div
+          className="
+            flex items-center gap-2
+            px-3 py-1.5
+            rounded-full
+            bg-slate-50
+            border border-slate-200
+            text-sm
+            whitespace-nowrap
+          "
+        >
+          <span className="text-slate-500">
+            Status
+          </span>
+
+          <span
+            className={`
+              font-semibold capitalize
+              ${
+                data.status === "completed"
+                ? "text-emerald-600"
+                :
+                data.status === "processing"
+                ? "text-amber-500"
+                :
+                "text-red-500"
+              }
+            `}
+          >
+            {data.status}
+          </span>
+        </div>
+
+
+        {/* Patent Count */}
+        <div
+          className="
+            flex items-center gap-2
+            px-3 py-1.5
+            rounded-full
+            bg-slate-50
+            border border-slate-200
+            text-sm
+            whitespace-nowrap
+          "
+        >
+          <span className="text-slate-500">
+            Patents
+          </span>
+
+          <span className="font-semibold text-slate-700">
+            {data.total_patents}
+          </span>
+        </div>
+
+      </div>
+
+
+
+      {/* RIGHT SECTION */}
+      <div
+        className="
+          flex flex-wrap
+          items-center
+          gap-3
+          w-full
+          xl:w-auto
+        "
+      >
+
+
+        {/* Search */}
+        {(data.status === "completed" ||
+          data.status === "processing") && (
+
+          <div
+            className="
+              flex items-center gap-2
+              bg-slate-100
+              border border-slate-200
+              rounded-xl
+              px-3 py-2
+              flex-1
+              min-w-[220px]
+              max-w-full
+              xl:w-[260px]
+              focus-within:ring-2
+              focus-within:ring-red-100
+            "
+          >
+
+            <Search
+              size={16}
+              className="text-slate-500 shrink-0"
+            />
+
+            <input
+              type="text"
+              placeholder="Search patents..."
+              className="
+                bg-transparent
+                outline-none
+                text-sm
+                text-slate-700
+                w-full
+                placeholder:text-slate-400
+              "
+              value={globalSearch}
+              onChange={(e)=>setGlobalSearch(e.target.value)}
+            />
+
+          </div>
+
+        )}
+
+
+
+        {/* Upload */}
+        {data.status === "pending" && (
+
+          <>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".xlsx,.xls"
+              className="hidden"
+            />
+
+            <button
+              onClick={()=>fileInputRef.current?.click()}
+              disabled={uploading}
+              className="
+                flex items-center gap-2
+                bg-emerald-600
+                hover:bg-emerald-700
+                text-white
+                px-4 py-2
+                rounded-xl
+                text-sm
+                font-medium
+                transition
+                disabled:opacity-50
+              "
+            >
+
+              <UploadCloud size={17}/>
+
+              <span>
+                {uploading
+                  ? "Uploading..."
+                  : "Upload"
+                }
+              </span>
+
+            </button>
+          </>
+
+        )}
+
+
+
+        <ExcelPreview sessionId={sessionId}/>
+
+
+
+        {/* Infringement Button */}
+        {(data.status === "completed" ||
+          data.status === "processing") && (
+
+          <button
+            className="
+              flex items-center justify-center gap-2
+              bg-[#b90000]
+              hover:bg-red-800
+              text-white
+              px-4
+              sm:px-5
+              py-2
+              rounded-xl
+              text-sm
+              font-medium
+              transition
+              shadow-md
+              shadow-red-200
+              whitespace-nowrap
+            "
+            onClick={()=>{
+              if(selectedForExport.size===0){
+                toast.error(
+                  "Please select a patent first."
+                );
+                return;
+              }
+
+              if(selectedForExport.size>1){
+                toast.error(
+                  "Please select only one patent for Infringement Analysis."
+                );
+                return;
+              }
+
+              const patentId =
+                Array.from(selectedForExport)[0];
+
+              openInfringementModal(patentId);
+            }}
+          >
+
+            <ShieldAlert size={17}/>
+
+            <span className="hidden sm:inline">
+              Infringement Analysis
+            </span>
+
+            <span className="sm:hidden">
+              Analysis
+            </span>
+
+          </button>
+
+        )}
+
+      </div>
+
+    </div>
+
+  </div>
+</header>
 
       {/* ============ Processing Progress ============ */}
       <section className="mx-auto container">
@@ -719,14 +850,14 @@ export default function SessionDetail() {
         {/* Instruction Modal */}
         {isInstructionModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-lg w-full relative animate-in fade-in zoom-in duration-200">
-              <h3 className="text-xl font-bold text-white mb-2">Start Infringement Analysis</h3>
-              <p className="text-slate-400 text-sm mb-4">
-                Patent ID: <strong className="text-indigo-400">{targetPatentId}</strong>
+            <div className="bg-slate-100 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-lg w-full relative animate-in fade-in zoom-in duration-200">
+              <h3 className="text-xl font-bold text-slate-500 mb-2">Start Infringement Analysis</h3>
+              <p className="text-slate-500 text-sm mb-4">
+                Patent ID: <strong className="text-indigo-500">{targetPatentId}</strong>
               </p>
               
               <textarea
-                className="w-full h-32 bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6 resize-none"
+                className="w-full h-32 bg-slate-200 border border-slate-700 rounded-lg p-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6 resize-none"
                 placeholder="Enter custom instructions for the AI (Optional)...&#10;e.g., 'Focus specifically on the communication protocols.'"
                 value={customInstruction}
                 onChange={(e) => setCustomInstruction(e.target.value)}
@@ -734,13 +865,13 @@ export default function SessionDetail() {
               
               <div className="flex justify-end gap-3">
                 <button
-                  className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+                  className="px-4 py-2 rounded-lg font-medium text-slate-500 hover:bg-slate-200 transition cursor-pointer"
                   onClick={() => setIsInstructionModalOpen(false)}
                 >
                   Cancel
                 </button>
                 <button
-                  className="px-4 py-2 rounded-lg font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-500/20 cursor-pointer"
+                  className="px-4 py-2 rounded-lg font-medium bg-[#b90000] hover:bg-red-800 text-white transition shadow-md shadow-indigo-500/20 cursor-pointer"
                   onClick={() => {
                     setIsInstructionModalOpen(false);
                     handleStartInfringement(targetPatentId, customInstruction);

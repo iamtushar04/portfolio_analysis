@@ -358,7 +358,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" onClick={onClose} />
 
             {/* Drawer Shell */}
-            <div className="fixed inset-y-0 right-0 w-[920px] max-w-[100vw] bg-slate-900 border-l border-slate-700/60 shadow-2xl z-[101] flex flex-col overflow-hidden">
+            <div className="fixed inset-y-0 right-0 w-[920px] max-w-[100vw] bg-slate-100 border-l border-slate-700/60 shadow-2xl z-[101] flex flex-col overflow-hidden">
 
                 {/* ══════════════════════════════════════════
                     PAGE 1 — Products List
@@ -369,20 +369,20 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                     }`}
                 >
                     {/* Header */}
-                    <div className="shrink-0 bg-slate-900/95 backdrop-blur border-b border-slate-700/60 px-6 py-5 flex justify-between items-start z-10 shadow-sm">
+                    <div className="shrink-0 bg-slate-100 backdrop-blur border-b border-slate-200/60 px-6 py-5 flex justify-between items-start z-10 shadow-sm">
                         <div>
                             <div className="flex items-center gap-3 text-rose-400 mb-2">
                                 <ShieldAlert size={24} />
                                 <h2 className="text-2xl font-bold tracking-tight">Infringement Analysis</h2>
                             </div>
-                            <div className="text-slate-400 font-mono flex items-center gap-2 flex-wrap">
-                                <span className="bg-slate-800 px-2.5 py-1 rounded-md text-sm font-semibold border border-slate-700">
+                            <div className="text-slate-700 font-mono flex items-center gap-2 flex-wrap">
+                                <span className="bg-slate-100 px-2.5 py-1 rounded-md text-sm font-semibold border border-slate-300">
                                     {patentNumber}
                                 </span>
                                 {title && (
                                     <>
                                         <ChevronRight size={14} className="text-slate-600" />
-                                        <span className="text-slate-300 text-sm font-sans truncate max-w-[420px]">{title}</span>
+                                        <span className="text-slate-500 text-sm font-sans truncate max-w-[420px]">{title}</span>
                                     </>
                                 )}
                             </div>
@@ -396,7 +396,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                                         setActiveChartIdx(completedChartIndices[0]);
                                         setDrawerView('claim-chart');
                                     }}
-                                    className="flex items-center gap-2 bg-emerald-700/30 hover:bg-emerald-700/50 text-emerald-300 border border-emerald-600/40 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                                    className="flex items-center gap-2 bg-emerald-500 cursor-pointer hover:bg-emerald-600 text-white border border-emerald-600/40 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
                                 >
                                     <FileBarChart size={15} />
                                     View Claim Charts ({completedChartIndices.length})
@@ -412,8 +412,8 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                                     }}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
                                         isSelectionMode
-                                            ? 'bg-indigo-600 text-white border-indigo-500'
-                                            : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                                            ? 'bg-slate-700 text-white border-slate-500'
+                                            : 'bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer border-slate-700'
                                     }`}
                                 >
                                     <Check size={15} />
@@ -423,7 +423,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
 
                             <button
                                 onClick={onClose}
-                                className="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors"
+                                className="p-2.5 bg-slate-200 hover:bg-slate-300 rounded-full text-slate-600 transition-colors"
                             >
                                 <X size={20} />
                             </button>
@@ -440,14 +440,14 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                                     <span className="w-2 h-2 rounded-full bg-indigo-500" />
                                     Novelty Summary
                                 </h3>
-                                <p className="text-sm leading-relaxed text-slate-300">{data.novelty_summary}</p>
+                                <p className="text-sm leading-relaxed text-slate-600">{data.novelty_summary}</p>
                             </div>
                         )}
 
                         {/* Products list header */}
                         <div className="flex items-center gap-3">
-                            <h3 className="text-sm font-bold text-slate-200 uppercase tracking-widest">Infringing Products</h3>
-                            <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs font-bold border border-slate-700">
+                            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-widest">Infringing Products</h3>
+                            <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-xs font-bold border border-slate-700">
                                 {products.length}
                             </span>
                         </div>
@@ -480,8 +480,8 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                                 <summary className="text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider focus:outline-none">
                                     Show Raw API Data
                                 </summary>
-                                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto max-h-[300px] mt-2">
-                                    <pre className="text-[10px] text-slate-500 font-mono">{JSON.stringify(result, null, 2)}</pre>
+                                <div className="bg-slate-250 p-4 rounded-xl border border-slate-300 overflow-x-auto max-h-[300px] mt-2">
+                                    <pre className="text-[10px] text-slate-600 font-mono">{JSON.stringify(result, null, 2)}</pre>
                                 </div>
                             </details>
                         </div>
@@ -517,40 +517,40 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                     PAGE 2 — Claim Chart Viewer
                 ══════════════════════════════════════════ */}
                 <div
-                    className={`absolute inset-0 flex flex-col bg-slate-900 transition-transform duration-300 ease-in-out ${
+                    className={`absolute inset-0 flex flex-col bg-slate-200 transition-transform duration-300 ease-in-out ${
                         drawerView === 'claim-chart' ? 'translate-x-0' : 'translate-x-full'
                     }`}
                 >
                     {/* Viewer Header */}
-                    <div className="shrink-0 bg-slate-900/95 backdrop-blur border-b border-slate-700/60 px-6 py-5 flex justify-between items-center z-10 shadow-sm">
+                    <div className="shrink-0 bg-slate-200 backdrop-blur border-b border-slate-200 px-6 py-5 flex justify-between items-center z-10 shadow-sm">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setDrawerView('products')}
-                                className="flex items-center gap-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
+                                className="cursor-pointer flex items-center gap-2 text-slate-200 hover:text-white bg-[#b90000] hover:bg-red-800 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
                             >
                                 <ArrowLeft size={16} />
                                 Back
                             </button>
                             <div>
-                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <FileBarChart size={18} className="text-indigo-400" />
+                                <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+                                    <FileBarChart size={18} className="text-slate-500" />
                                     Claim Chart Analysis
                                 </h2>
-                                <p className="text-xs text-slate-400 font-mono">{patentNumber}</p>
+                                <p className="text-xs text-slate-600 font-mono">{patentNumber}</p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={exportToPDF}
-                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-emerald-500/20"
+                                className="flex items-center gap-2 bg-emerald-600 cursor-pointer hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-emerald-500/20"
                             >
                                 <Download size={16} />
                                 Download PDF
                             </button>
                             <button
                                 onClick={onClose}
-                                className="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors"
+                                className="p-2.5 bg-slate-300 hover:bg-slate-400 cursor-pointer rounded-full text-slate-400 hover:text-white transition-colors"
                             >
                                 <X size={20} />
                             </button>
@@ -562,7 +562,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
 
                         {/* Left Sidebar — product list (only if > 1 chart) */}
                         {completedChartIndices.length > 1 && (
-                            <div className="w-64 shrink-0 bg-slate-800/50 border-r border-slate-700/60 overflow-y-auto custom-scrollbar p-4 space-y-2">
+                            <div className="w-64 shrink-0 bg-slate-100 border-r border-slate-700/60 overflow-y-auto custom-scrollbar p-4 space-y-2">
                                 <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Products</p>
                                 {completedChartIndices.map((pidx) => {
                                     const chart = cachedClaimCharts[pidx];
@@ -571,14 +571,14 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                                         <button
                                             key={pidx}
                                             onClick={() => setActiveChartIdx(pidx)}
-                                            className={`w-full text-left px-3 py-3 rounded-lg border transition-all duration-150 ${
+                                            className={`cursor-pointer w-full text-left px-3 py-3 rounded-lg border transition-all duration-150 ${
                                                 isActive
-                                                    ? 'bg-indigo-600/20 border-indigo-500/50 text-white'
-                                                    : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
+                                                    ? 'bg-[#b90000] border-red-500' 
+                                                    : 'bg-slate-100 border-slate-700/50 text-slate-800 hover:bg-slate-200'
                                             }`}
                                         >
                                             <div className="font-semibold text-sm truncate">{chart?.company}</div>
-                                            <div className="text-xs text-slate-500 truncate mt-0.5">{chart?.model}</div>
+                                            <div className="text-xs truncate mt-0.5">{chart?.model}</div>
                                             <div className="mt-2 flex items-center gap-1.5">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                                                 <span className="text-[10px] text-emerald-400 font-bold uppercase">Chart Ready</span>
@@ -594,25 +594,25 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                             {activeChart ? (
                                 <div className="space-y-6">
                                     {/* Product info bar */}
-                                    <div className="flex flex-wrap items-center gap-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                                        <div className="flex items-center gap-2 text-white font-bold text-lg">
-                                            <Building2 size={18} className="text-indigo-400" />
+                                    <div className="flex flex-wrap items-center gap-4 p-4 bg-slate-100 rounded-xl border border-slate-200/50">
+                                        <div className="flex items-center gap-2 text-slate-700 font-bold text-lg">
+                                            <Building2 size={18} className="text-slate-600" />
                                             {activeChart.company}
                                         </div>
                                         <span className="text-slate-500">·</span>
-                                        <div className="text-slate-300 font-medium">{activeChart.model}</div>
+                                        <div className="text-slate-700 font-medium">{activeChart.model}</div>
                                         {activeChart.category && (
-                                            <span className="px-2.5 py-1 rounded-md bg-slate-700 text-slate-300 text-xs font-medium border border-slate-600">
+                                            <span className="px-2.5 py-1 rounded-md bg-slate-200 text-slate-700 text-xs font-medium border border-slate-600">
                                                 {activeChart.category}
                                             </span>
                                         )}
                                         {activeChart.eou_probability && (
                                             <span className={`px-2.5 py-1 rounded-md border text-xs font-bold uppercase ${
                                                 activeChart.eou_probability?.toLowerCase() === 'high'
-                                                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                                                    ? 'bg-rose-500/10 text-rose-600 border-rose-500/30'
                                                     : activeChart.eou_probability?.toLowerCase() === 'medium'
-                                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                                                    : 'bg-slate-700 text-slate-400 border-slate-600'
+                                                    ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                                                    : 'bg-slate-200 text-slate-600 border-slate-600'
                                             }`}>
                                                 {activeChart.eou_probability} Probability
                                             </span>
@@ -621,42 +621,42 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
 
                                     {/* Disclaimer */}
                                     {activeChart.disclaimer && (
-                                        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+                                        <div className="p-4 bg-rose-100 border border-rose-200/30 rounded-xl">
                                             <h4 className="text-rose-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
                                                 <ShieldAlert size={14} />
                                                 Analysis Disclaimer
                                             </h4>
-                                            <p className="text-slate-300 text-sm leading-relaxed">{activeChart.disclaimer}</p>
+                                            <p className="text-slate-600 text-sm leading-relaxed">{activeChart.disclaimer}</p>
                                         </div>
                                     )}
 
                                     {/* Claim Chart Table */}
                                     {(activeChart.claim_chart || []).length > 0 ? (
-                                        <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                                        <div className="bg-slate-200 rounded-xl border border-slate-300 overflow-hidden">
                                             <table className="w-full text-left border-collapse">
                                                 <thead>
-                                                    <tr className="bg-indigo-900/50 text-indigo-200 text-xs uppercase tracking-wider">
+                                                    <tr className="bg-slate-200 text-slate-700 text-xs uppercase tracking-wider">
                                                         <th className="p-4 font-semibold border-b border-indigo-500/20 w-[22%]">Claim Element</th>
                                                         <th className="p-4 font-semibold border-b border-indigo-500/20 w-[25%]">Spec Support</th>
                                                         <th className="p-4 font-semibold border-b border-indigo-500/20 w-[8%] text-center">Score</th>
                                                         <th className="p-4 font-semibold border-b border-indigo-500/20">Analysis / Justification</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="text-sm text-slate-300 divide-y divide-slate-800/60">
+                                                <tbody className="text-sm text-slate-00 divide-y divide-slate-800/60">
                                                     {activeChart.claim_chart.map((row: any, i: number) => {
                                                         const markup = (html: string) => ({
                                                             __html: (html || '').replace(/<mark>/gi, '<mark style="background:rgba(99,102,241,0.25);color:#c7d2fe;padding:0 3px;border-radius:3px">'),
                                                         });
                                                         return (
-                                                            <tr key={i} className="hover:bg-slate-900/50 transition-colors">
-                                                                <td className="p-4 align-top leading-relaxed text-slate-200" dangerouslySetInnerHTML={markup(row.claim_element)} />
-                                                                <td className="p-4 align-top leading-relaxed text-slate-400" dangerouslySetInnerHTML={markup(row.spec_support)} />
+                                                            <tr key={i} className="hover:bg-slate-200 transition-colors">
+                                                                <td className="p-4 align-top leading-relaxed text-slate-500" dangerouslySetInnerHTML={markup(row.claim_element)} />
+                                                                <td className="p-4 align-top leading-relaxed text-slate-500" dangerouslySetInnerHTML={markup(row.spec_support)} />
                                                                 <td className="p-4 align-top text-center">
-                                                                    <span className="inline-block px-2 py-1 rounded-md bg-slate-800 border border-slate-700 font-mono text-indigo-400 font-bold text-sm">
+                                                                    <span className="inline-block px-2 py-1 rounded-md bg-slate-200 border border-slate-700 font-mono text-slate-700 font-bold text-sm">
                                                                         {row.score || '—'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="p-4 align-top leading-relaxed text-slate-300" dangerouslySetInnerHTML={markup(row.corresponding_feature || row.source_justification || '')} />
+                                                                <td className="p-4 align-top leading-relaxed text-slate-500" dangerouslySetInnerHTML={markup(row.corresponding_feature || row.source_justification || '')} />
                                                             </tr>
                                                         );
                                                     })}

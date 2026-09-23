@@ -114,6 +114,7 @@ const ExcelPreview = ({ sessionId }: ExcelPreviewProps) => {
         className="
           flex items-center gap-2
           bg-white
+          whitespace-nowrap
           border border-slate-200
           text-slate-500
           hover:bg-slate-100

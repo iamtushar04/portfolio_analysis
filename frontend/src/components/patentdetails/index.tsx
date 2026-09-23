@@ -546,74 +546,97 @@ const PatentDetails = ({
 
   return (
     <>
-      <div className="w-full bg-white rounded-lg overflow-hidden flex flex-col h-[calc(100vh-200px)]">
-        {/* Sticky Header */}
-        <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px_160px] text-xs uppercase bg-slate-100 text-slate-700 shrink-0 items-center">
-          <div className="px-3 py-3 flex items-center justify-center">
-            <input
-              type="checkbox"
-              checked={
-                patents.length > 0 &&
-                selectedForExport.size ===
-                patents.filter(
-                  (p: any) => p.status !== "pending" && p.status !== "failed",
-                ).length
-              }
-              onChange={onSelectAll}
-              className="cursor-pointer w-4 h-4 rounded bg-slate-800 accent-indigo-500"
-            />
-          </div>
-          <div className="px-4 py-3 font-semibold">Patent No</div>
-          <div className="px-4 py-3 font-semibold">Title & Assignee</div>
-          <div className="px-4 py-3 font-semibold">Technology</div>
-          <div className="px-4 py-3 font-semibold">Standards</div>
-          <div className="px-4 py-3 font-semibold text-center">Citations</div>
-          <div className="px-4 py-3 font-semibold text-center flex flex-col items-center justify-center border-l border-slate-700/50">
-            <span className="text-slate-500 mb-1">Ranked Score</span>
-            <div className="flex items-center gap-1 bg-slate-900/50 rounded px-1.5 py-0.5 w-fit">
-              <span className="text-[9px] uppercase tracking-wider text-slate-100 font-bold">
-                By:
-              </span>
-              <select
-                className="bg-transparent text-[10px] text-slate-100 font-bold outline-none border-none cursor-pointer text-center"
-                value={sortBy}
-                onChange={(e) =>
-                  onSortByChange(e.target.value as "topic" | "subtopic")
-                }
-              >
-                <option className="bg-slate-200 text-slate-700" value="topic">
-                  Topic
-                </option>
-                <option
-                  className="bg-slate-200 text-slate-700"
-                  value="subtopic"
-                >
-                  Subtopic
-                </option>
-              </select>
-            </div>
-          </div>
-          <div className="px-4 py-3 font-semibold text-center border-l border-slate-200/50">Analysis</div>
-        </div>
+      <div className="w-full bg-white rounded-lg overflow-hidden flex flex-col h-[calc(100vh-124px)]">
+  {/* Sticky Header */}
+  <div className="grid grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px_160px] text-xs uppercase bg-slate-100 text-slate-700 shrink-0 items-center">
+    
+    <div className="px-3 py-3 flex items-center justify-center">
+      <input
+        type="checkbox"
+        checked={
+          patents.length > 0 &&
+          selectedForExport.size ===
+            patents.filter(
+              (p: any) =>
+                p.status !== "pending" && p.status !== "failed"
+            ).length
+        }
+        onChange={onSelectAll}
+        className="cursor-pointer w-4 h-4 rounded bg-slate-800 accent-indigo-500"
+      />
+    </div>
 
-        {/* Virtualized Body */}
-        <div className="flex-1 min-h-0">
-          <Virtuoso
-            className="h-full w-full custom-scrollbar"
-            data={sortedPatents}
-            itemContent={(_index, p) => (
-              <PatentRow
-                p={p}
-                isSelected={selectedPatent?.patent_number === p.patent_number}
-                onSelect={() => setSelectedPatent(p)}
-                sortBy={sortBy}
-                isChecked={selectedForExport.has(p.patent_number)}
-                onToggleCheck={onToggleExport}
-                infringementJob={infringementJobs?.get(p.patent_number)}
-                onViewInfringement={onViewInfringement}
-                onStartInfringement={onStartInfringement}
-              />
-            )}
+    <div className="px-4 py-3 font-semibold">
+      Patent No
+    </div>
+
+    <div className="px-4 py-3 font-semibold">
+      Title & Assignee
+    </div>
+
+    <div className="px-4 py-3 font-semibold">
+      Technology
+    </div>
+
+    <div className="px-4 py-3 font-semibold">
+      Standards
+    </div>
+
+    <div className="px-4 py-3 font-semibold text-center">
+      Citations
+    </div>
+
+    <div className="px-4 py-3 font-semibold text-center flex flex-col items-center justify-center border-l border-slate-700/50">
+      <span className="text-slate-500 mb-1">
+        Ranked Score
+      </span>
+
+      <div className="flex items-center gap-1 bg-slate-900/50 rounded px-1.5 py-0.5">
+        <span className="text-[9px] uppercase tracking-wider text-slate-100 font-bold">
+          By:
+        </span>
+
+        <select
+          className="bg-transparent text-[10px] text-slate-100 font-bold outline-none cursor-pointer"
+          value={sortBy}
+          onChange={(e) =>
+            onSortByChange(
+              e.target.value as "topic" | "subtopic"
+            )
+          }
+        >
+          <option value="topic">Topic</option>
+          <option value="subtopic">Subtopic</option>
+        </select>
+      </div>
+    </div>
+
+    <div className="px-4 py-3 font-semibold text-center border-l border-slate-200/50">
+      Analysis
+    </div>
+  </div>
+
+
+  {/* Scroll only this section */}
+  <div className="flex-1 min-h-0 overflow-hidden">
+    <Virtuoso
+      className="h-full w-full custom-scrollbar"
+      data={sortedPatents}
+      itemContent={(_index, p) => (
+        <PatentRow
+          p={p}
+          isSelected={
+            selectedPatent?.patent_number === p.patent_number
+          }
+          onSelect={() => setSelectedPatent(p)}
+          sortBy={sortBy}
+          isChecked={selectedForExport.has(p.patent_number)}
+          onToggleCheck={onToggleExport}
+          infringementJob={infringementJobs?.get(p.patent_number)}
+          onViewInfringement={onViewInfringement}
+          onStartInfringement={onStartInfringement}
+        />
+      )}
           />
         </div>
       </div>
