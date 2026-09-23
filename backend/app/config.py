@@ -11,8 +11,10 @@ class Settings:
     PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY")
     
     WISSEN_API_BASE_URL: str = os.getenv("WISSEN_API_BASE_URL")
+    WISSEN_AI_API_BASE_URL: str = os.getenv("WISSEN_AI_API_BASE_URL")
     SPARTA_API_BASE_URL: str = os.getenv("SPARTA_API_BASE_URL")
     COMPETITOR_API_URL: str = os.getenv("COMPETITOR_API_URL")
+    AGENT_API_BASE_URL: str = os.getenv("AGENT_API_BASE_URL")
     KYP_BASE_URL: str = os.getenv("KYP_BASE_URL")
     
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

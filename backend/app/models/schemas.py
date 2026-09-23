@@ -85,3 +85,13 @@ class InfringementAnalysisCache(Base):
     patent_number = Column(String, primary_key=True, index=True)
     result_data = Column(JSON, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow)
+
+class ClaimChartCache(Base):
+    __tablename__ = "claim_chart_cache"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    patent_number = Column(String, index=True, nullable=False)
+    company = Column(String, index=True, nullable=False)
+    model = Column(String, index=True, nullable=False)
+    result_data = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
