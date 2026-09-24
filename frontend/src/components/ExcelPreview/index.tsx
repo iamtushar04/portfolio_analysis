@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as XLSX from "xlsx";
-import { Download, X, FileSpreadsheet } from "lucide-react";
+import { X, Download } from "lucide-react";
 import { ExcelExport } from "@/services/ExcelExport";
 
 interface ExcelPreviewProps {
@@ -11,80 +11,236 @@ interface ExcelPreviewProps {
 
 interface ExcelSheet {
   name: string;
-
   data: any[];
 }
 
-const ExcelPreview = ({ sessionId }: ExcelPreviewProps) => {
+const ExcelPreview = ({
+  sessionId,
+}: ExcelPreviewProps) => {
+
+
   const [open, setOpen] = useState(false);
+
   const [sheets, setSheets] = useState<ExcelSheet[]>([]);
+
   const [activeSheet, setActiveSheet] = useState(0);
-  const [excelFile, setExcelFile] = useState<Blob | null>(null);
+
+  const [translate, setTranslate] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
-  // Translation modal
-  const [showTranslateModal, setShowTranslateModal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const previewExcel = async () => {
+
+
+  const currentSheet =
+    sheets[activeSheet];
+
+
+
+  const columns =
+    currentSheet?.data?.length
+      ?
+      Object.keys(
+        currentSheet.data[0]
+      ).filter(
+        (column) =>
+          !column
+            .toLowerCase()
+            .startsWith("empty")
+      )
+      :
+      [];
+
+
+
+
+
+  const loadExcelPreview = async (
+    translateValue: boolean
+  ) => {
+
     try {
+
       setLoading(true);
 
-      // Preview always uses translate=false
-      const file = await ExcelExport(sessionId, false);
 
-      setExcelFile(file);
+      const file =
+        await ExcelExport(
+          sessionId,
+          translateValue
+        );
 
-      const arrayBuffer = await file.arrayBuffer();
 
-      const workbook = XLSX.read(arrayBuffer, {
-        type: "array",
-      });
+      const buffer =
+        await file.arrayBuffer();
 
-      const excelSheets: ExcelSheet[] = workbook.SheetNames.map((sheetName) => {
-        const worksheet = workbook.Sheets[sheetName];
 
-        const data = XLSX.utils.sheet_to_json(worksheet, {
-          defval: "",
-        });
 
-        return {
-          name: sheetName,
-          data,
-        };
-      });
+      const workbook =
+        XLSX.read(
+          buffer,
+          {
+            type: "array",
+          }
+        );
 
-      setSheets(excelSheets);
+
+
+      const parsedSheets: ExcelSheet[] =
+        workbook.SheetNames.map(
+          (sheetName) => {
+
+
+            const worksheet =
+              workbook.Sheets[sheetName];
+
+
+
+            const rows =
+              XLSX.utils.sheet_to_json(
+                worksheet,
+                {
+                  header: 1,
+                  defval: "",
+                }
+              ) as any[][];
+
+
+
+            const filteredRows =
+              rows.filter(
+                (row) =>
+                  row.some(
+                    (cell) =>
+                      String(cell).trim() !== ""
+                  )
+              );
+
+
+
+            if (!filteredRows.length) {
+
+              return {
+                name: sheetName,
+                data: [],
+              };
+
+            }
+
+
+
+
+            const headers =
+              filteredRows[0].map(
+                (header, index) =>
+                  String(header).trim()
+                  ||
+                  `Column_${index + 1}`
+              );
+
+
+
+            const data =
+              filteredRows
+                .slice(1)
+                .map(
+                  (row) => {
+
+                    const obj: any = {};
+
+                    headers.forEach(
+                      (header, index) => {
+
+                        obj[header] =
+                          row[index] ?? "";
+
+                      }
+                    );
+
+
+                    return obj;
+
+                  }
+                );
+
+
+
+            return {
+              name: sheetName,
+              data,
+            };
+
+
+          }
+        );
+
+
+
+      setSheets(parsedSheets);
+
       setActiveSheet(0);
+
       setOpen(true);
-    } catch (error) {
-      console.error("Excel preview failed:", error);
-    } finally {
-      setLoading(false);
+
+
+
     }
+    catch(error){
+
+      console.error(
+        "Excel preview error",
+        error
+      );
+
+    }
+    finally {
+
+      setLoading(false);
+
+    }
+
   };
 
-  // Open translation modal
-  const downloadExcel = () => {
-    setShowTranslateModal(true);
-  };
 
-  // Download Excel with selected translation option
-  const confirmDownload = async (translate: boolean) => {
+
+
+
+
+
+  const handleDownload = async () => {
+
     try {
+
       setDownloading(true);
 
-      setShowTranslateModal(false);
 
-      // Call API with translate=true/false
-      const file = await ExcelExport(sessionId, translate);
+      const file =
+        await ExcelExport(
+          sessionId,
+          translate
+        );
 
-      const url = URL.createObjectURL(file);
 
-      const link = document.createElement("a");
+
+      const url =
+        window.URL.createObjectURL(
+          file
+        );
+
+
+
+      const link =
+        document.createElement("a");
+
+
 
       link.href = url;
-      link.download = translate ? "export_translated.xlsx" : "export.xlsx";
+
+      link.download =
+        "Portfolio_Analysis_Report.xlsx";
+
+
 
       document.body.appendChild(link);
 
@@ -92,274 +248,711 @@ const ExcelPreview = ({ sessionId }: ExcelPreviewProps) => {
 
       link.remove();
 
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Excel download failed:", error);
-    } finally {
-      setDownloading(false);
+
+
+      window.URL.revokeObjectURL(url);
+
+
+
     }
+    catch(error){
+
+      console.error(
+        "Download error",
+        error
+      );
+
+    }
+    finally{
+
+      setDownloading(false);
+
+    }
+
   };
 
-  const currentSheet = sheets[activeSheet];
-  const columns = currentSheet?.data?.length
-    ? Object.keys(currentSheet.data[0])
-    : [];
+
+
+
+
+
 
   return (
-    <>
-      {/* Preview Button */}
-      <button
-        onClick={previewExcel}
-        disabled={loading}
-        className="
-          flex items-center gap-2
-          bg-white
-          whitespace-nowrap
-          border border-slate-200
-          text-slate-500
-          hover:bg-slate-100
-          cursor-pointer
-          px-4 py-2
-          rounded-xl
-      "
-      >
-        <FileSpreadsheet size={18} color="white" fill="green" />
 
-        {loading ? "Loading..." : "Preview Excel"}
+    <>
+
+
+      <button
+
+        onClick={() =>
+          loadExcelPreview(
+            translate
+          )
+        }
+
+        className="
+          px-4
+          py-2
+          bg-slate-600
+          text-white
+          rounded-md
+        "
+
+      >
+
+        {
+          loading
+          ?
+          "Loading..."
+          :
+          "Preview Excel"
+        }
+
       </button>
 
-      {/* Excel Preview Modal */}
-      {open && (
-        <div
-          className="
-            fixed inset-0
-            z-40
-            flex items-center justify-center
-            bg-black/50
-          "
-        >
+
+
+
+
+
+
+      {
+        open && (
+
           <div
+
             className="
-              bg-white
-              w-[90%]
-              h-[85%]
-              rounded-xl
-              shadow-xl
-              flex flex-col
+              fixed
+              inset-0
+              z-[9999]
+              bg-black/60
+              flex
+              items-center
+              justify-center
             "
+
           >
-            {/* Header */}
-            <div
-              className="
-                flex items-center justify-between
-                px-5 py-4
-                border-b
-              "
-            >
-              <h2 className="text-lg font-semibold text-black">
-                Excel Preview
-              </h2>
 
-              <button
-                onClick={() => setOpen(false)}
-                className="text-gray-600 hover:text-black"
+
+
+
+            <div
+
+              className="
+                bg-white
+                fixed top-0
+                w-[95vw]
+                h-[95vh]
+                rounded-xl
+                shadow-2xl
+                flex
+                flex-col
+                overflow-hidden
+              "
+
+            >
+
+
+
+
+
+              {/* HEADER */}
+
+
+              <div
+
+                className="
+                  flex
+                  justify-between
+                  items-center
+                  px-6
+                  py-4
+                  border-b
+                  shrink-0
+                "
+
               >
-                <X size={20} />
-              </button>
-            </div>
 
-            {/* Sheet Tabs */}
-            <div
-              className="
-                flex gap-2
-                px-5 py-3
-                border-b
-                overflow-x-auto
-              "
-            >
-              {sheets.map((sheet, index) => (
-                <button
-                  key={sheet.name}
-                  onClick={() => setActiveSheet(index)}
-                  className={`
-                    px-3 py-1.5
-                    rounded-md
-                    text-sm
-                    whitespace-nowrap
-                    ${
-                      activeSheet === index
-                        ? "bg-slate-500 text-white"
-                        : "bg-gray-200 text-black hover:bg-gray-300"
-                    }
-                  `}
+
+
+                <h2
+
+                  className="
+                    text-lg
+                    font-semibold
+                    text-black
+                  "
+
                 >
-                  {sheet.name}
-                </button>
-              ))}
-            </div>
 
-            {/* Table */}
-            <div className="flex-1 overflow-auto p-5">
-              {currentSheet?.data?.length ? (
-                <table className="border-collapse w-full text-sm text-black">
-                  <thead>
-                    <tr>
-                      {columns.map((column) => (
-                        <th
-                          key={column}
-                          className="
-                            border
-                            px-3 py-2
-                            bg-gray-100
-                            text-left
-                            font-semibold
-                            whitespace-nowrap
-                          "
-                        >
-                          {column}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
+                  Excel Preview
 
-                  <tbody>
-                    {currentSheet.data.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
-                        {columns.map((column) => (
-                          <td
-                            key={column}
-                            className="
-                              border
-                              px-3 py-2
-                              bg-white
-                            "
-                          >
-                            {row[column]}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No data available
+                </h2>
+
+
+
+
+
+                <div
+
+                  className="
+                    flex
+                    items-center
+                    gap-5
+                  "
+
+                >
+
+
+
+                  <label
+
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-sm
+                      text-black
+                    "
+
+                  >
+
+                    <input
+
+                      type="checkbox"
+
+                      checked={translate}
+
+                      onChange={(e)=>{
+
+                        const value =
+                          e.target.checked;
+
+
+                        setTranslate(value);
+
+
+                        loadExcelPreview(
+                          value
+                        );
+
+                      }}
+
+                    />
+
+
+                    Translate to English
+
+
+                  </label>
+
+
+
+
+
+
+                  <button
+
+                    onClick={() =>
+                      setOpen(false)
+                    }
+
+                    className="
+                      text-gray-600
+                      hover:text-black
+                    "
+
+                  >
+
+                    <X size={22}/>
+
+
+                  </button>
+
+
+
                 </div>
-              )}
-            </div>
 
-            {/* Footer */}
-            <div
-              className="
-                flex justify-end
-                px-5 py-4
-                border-t
-              "
-            >
-              <button
-                onClick={downloadExcel}
-                disabled={downloading}
+
+              </div>
+
+
+
+
+
+
+
+
+
+              {/* TABS */}
+
+
+
+              <div
+
                 className="
-                  flex items-center gap-2
-                  bg-green-600
-                  hover:bg-green-700
-                  text-white
-                  px-4 py-2
-                  rounded-lg
-                  disabled:opacity-50
-                  transition
-                  cursor-pointer
-                  disabled:cursor-not-allowed
+                  flex
+                  gap-2
+                  px-6
+                  py-3
+                  border-b
+                  overflow-x-auto
+                  shrink-0
                 "
-              >
-                <Download size={18} />
 
-                {downloading ? "Downloading..." : "Download Excel"}
-              </button>
+              >
+
+
+
+                {
+                  sheets.map(
+                    (sheet,index)=>(
+
+
+                      <button
+
+                        key={sheet.name}
+
+                        onClick={() =>
+                          setActiveSheet(index)
+                        }
+
+
+                        className={`
+
+                          px-4
+                          py-2
+                          rounded-md
+                          text-sm
+
+                          ${
+                            activeSheet === index
+
+                            ?
+
+                            "bg-slate-600 text-white"
+
+                            :
+
+                            "bg-gray-200 text-black"
+
+                          }
+
+                        `}
+
+                      >
+
+                        {sheet.name}
+
+
+                      </button>
+
+
+                    )
+
+                  )
+
+                }
+
+
+              </div>
+
+
+
+
+
+
+
+
+
+              {/* TABLE */}
+
+<div
+  className="
+    flex-1
+    overflow-auto
+    p-5
+    relative
+  "
+>
+
+{
+currentSheet?.data?.length
+
+?
+
+(
+
+<table
+  className={`
+    border-collapse
+    text-sm
+    text-black
+
+    ${
+      currentSheet.name === "KYP Analysis"
+      ?
+      "min-w-[1800px]"
+      :
+      "w-full"
+    }
+
+    table-fixed
+  `}
+>
+
+<thead>
+
+{
+
+activeSheet === 0
+
+?
+
+(
+
+<tr>
+
+<th
+  colSpan={columns.length}
+  className="
+    sticky
+    top-[-25px]
+    z-20
+    border
+    px-5
+    py-3
+    bg-gray-100
+    text-center
+    font-semibold
+    text-lg
+    text-black
+    whitespace-nowrap
+  "
+>
+
+Portfolio Analysis Report
+
+</th>
+
+</tr>
+
+)
+
+:
+
+(
+
+<tr>
+
+{
+columns.map(
+(column)=>(
+
+<th
+key={column}
+className={`
+  sticky
+  top-[-25px]
+  z-20
+  border
+  px-5
+  py-3
+  bg-gray-100
+  text-left
+  font-semibold
+  text-black
+  whitespace-nowrap
+
+  ${
+    currentSheet.name === "KYP Analysis"
+
+    ?
+
+    (
+      column.toLowerCase().includes("analysis")
+      ||
+      column.toLowerCase().includes("insight")
+      ||
+      column.toLowerCase().includes("description")
+      ||
+      column.toLowerCase().includes("comment")
+      ?
+
+      "min-w-[500px]"
+
+      :
+
+      "min-w-[220px]"
+    )
+
+    :
+
+    column.toLowerCase() === "abstract"
+
+    ?
+
+    "min-w-[500px]"
+
+    :
+
+    column.toLowerCase() === "assignee"
+
+    ?
+
+    "min-w-[350px]"
+
+    :
+
+    "min-w-[200px]"
+  }
+
+`}
+>
+
+{column}
+
+</th>
+
+)
+
+)
+
+}
+
+</tr>
+
+)
+
+}
+
+</thead>
+
+
+
+
+
+
+<tbody>
+
+{
+currentSheet.data.map(
+(row,rowIndex)=>(
+
+
+<tr
+key={rowIndex}
+>
+
+{
+columns.map(
+(column)=>(
+
+
+<td
+key={column}
+className={`
+  border
+  px-5
+  py-3
+  bg-white
+  align-top
+  text-black
+  whitespace-normal
+  break-words
+
+  ${
+    currentSheet.name === "KYP Analysis"
+
+    ?
+
+    (
+      column.toLowerCase().includes("analysis")
+      ||
+      column.toLowerCase().includes("insight")
+      ||
+      column.toLowerCase().includes("description")
+      ||
+      column.toLowerCase().includes("comment")
+
+      ?
+
+      "min-w-[500px]"
+
+      :
+
+      "min-w-[220px]"
+    )
+
+    :
+
+    column.toLowerCase() === "abstract"
+
+    ?
+
+    "min-w-[500px]"
+
+    :
+
+    column.toLowerCase() === "assignee"
+
+    ?
+
+    "min-w-[350px]"
+
+    :
+
+    "min-w-[200px]"
+  }
+
+`}
+>
+
+{row[column]}
+
+</td>
+
+
+)
+
+)
+
+}
+
+
+</tr>
+
+
+)
+
+)
+
+}
+
+</tbody>
+
+
+</table>
+
+)
+
+:
+
+(
+
+<div
+className="
+flex
+items-center
+justify-center
+h-full
+text-gray-500
+"
+>
+No data available
+</div>
+
+)
+
+}
+
+</div>
+
+
+
+
+
+
+
+
+              {/* FOOTER */}
+
+
+
+              <div
+
+                className="
+                  border-t
+                  px-6
+                  py-4
+                  flex
+                  justify-end
+                  shrink-0
+                "
+
+              >
+
+
+
+                <button
+
+                  onClick={handleDownload}
+
+                  disabled={downloading}
+
+
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    px-5
+                    py-2
+                    bg-slate-600
+                    text-white
+                    rounded-md
+                    hover:bg-slate-700
+                    disabled:opacity-50
+                  "
+
+                >
+
+
+                  <Download size={18}/>
+
+
+                  {
+
+                    downloading
+
+                    ?
+
+                    "Downloading..."
+
+                    :
+
+                    "Download Excel"
+
+                  }
+
+
+                </button>
+
+
+
+              </div>
+
+
+
+
+
+
             </div>
+
+
+
           </div>
-        </div>
-      )}
 
-      {/* Translate Modal */}
-      {showTranslateModal && (
-        <div
-          className="
-            fixed inset-0
-            z-50
-            flex items-center justify-center
-            bg-black/50
-          "
-        >
-          <div
-            className="
-              bg-white
-              w-[420px]
-              rounded-xl
-              shadow-2xl
-              p-6
-            "
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-black">
-                Download Excel
-              </h2>
 
-              <button
-                onClick={() => setShowTranslateModal(false)}
-                className="text-gray-500 hover:text-black"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        )
+      }
 
-            {/* Modal Content */}
-            <p className="text-sm text-gray-600 mb-6">
-              Would you like to translate the Excel content to English before
-              downloading?
-            </p>
 
-            {/* Buttons */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => confirmDownload(false)}
-                disabled={downloading}
-                className="
-                  px-4 py-2
-                  rounded-lg
-                  border
-                  border-gray-300
-                  bg-white
-                  text-black
-                  hover:bg-gray-50
-                  disabled:opacity-50
-                "
-              >
-                Download Original
-              </button>
 
-              <button
-                onClick={() => confirmDownload(true)}
-                disabled={downloading}
-                className="
-                  px-4 py-2
-                  rounded-lg
-                  border
-                  border-gray-300
-                  bg-white
-                  text-black
-                  hover:bg-gray-50
-                  disabled:opacity-50
-                "
-              >
-                Translate to English
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
+
   );
+
 };
+
+
 export default ExcelPreview;
