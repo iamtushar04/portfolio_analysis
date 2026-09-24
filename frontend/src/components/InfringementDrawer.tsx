@@ -412,7 +412,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                                     }}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
                                         isSelectionMode
-                                            ? 'bg-slate-700 text-white border-slate-500'
+                                            ? 'bg-slate-800 text-slate-100 border-slate-500'
                                             : 'bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer border-slate-700'
                                     }`}
                                 >
@@ -436,7 +436,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                         {/* Novelty Summary */}
                         {data?.novelty_summary && (
                             <div className="bg-indigo-900/10 p-5 rounded-xl border border-indigo-500/20 shadow-inner">
-                                <h3 className="text-xs font-bold text-indigo-400 mb-3 uppercase tracking-widest flex items-center gap-2">
+                                <h3 className="text-xs font-bold text-slate-700 mb-3 uppercase tracking-widest flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-indigo-500" />
                                     Novelty Summary
                                 </h3>
@@ -489,21 +489,21 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
 
                     {/* Selection mode bottom bar */}
                     {isSelectionMode && (
-                        <div className="shrink-0 bg-slate-900/95 border-t border-slate-700/60 px-8 py-4 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.4)] z-20">
+                        <div className="shrink-0 bg-slate-100 border-t border-slate-200/60 px-8 py-4 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.4)] z-20">
                             <div className="text-slate-300 text-sm">
-                                <span className="font-bold text-indigo-400">{selectedProducts.size}</span> product(s) selected
+                                <span className="font-bold text-slate-700">{selectedProducts.size} product(s) selected </span>
                             </div>
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => { setIsSelectionMode(false); setSelectedProducts(new Set()); }}
-                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
+                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-slate-200 hover:bg-slate-300 cursor-pointer transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={() => handleGenerateForProducts(Array.from(selectedProducts))}
                                     disabled={selectedProducts.size === 0}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-500/20"
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-slate-200 hover:bg-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-500/20"
                                 >
                                     <FileBarChart size={16} />
                                     Generate Selected ({selectedProducts.size})

@@ -116,7 +116,7 @@ export default function ProductCard({
 
           <div>
 
-            <div className="flex items-center gap-2 text-indigo-600 font-semibold text-lg">
+            <div className="flex items-center gap-2 text-slate-700 font-semibold text-lg">
               <Building2 size={18}/>
               {p.company}
             </div>
@@ -151,7 +151,7 @@ export default function ProductCard({
                     px-2.5 py-1 rounded-md
                     text-[10px] uppercase font-semibold
                     tracking-wide
-                    bg-indigo-50 text-indigo-600
+                    bg-indigo-50 text-slate-700
                     border border-indigo-200
                   "
                 >
@@ -300,7 +300,7 @@ export default function ProductCard({
                       onClick={(e)=>e.stopPropagation()}
                       className="
                         text-sm
-                        text-indigo-600
+                        text-slate-700
                         hover:underline
                         break-all
                       "
