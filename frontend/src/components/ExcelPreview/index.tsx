@@ -131,8 +131,13 @@ const ExcelPreview = ({
 
 
 
+            let headerRowIndex = 0;
+            if (sheetName === "KYP Analysis" && filteredRows.length > 1) {
+              headerRowIndex = 1; // Skip the merged group titles
+            }
+
             const headers =
-              filteredRows[0].map(
+              filteredRows[headerRowIndex].map(
                 (header, index) =>
                   String(header).trim()
                   ||
@@ -143,7 +148,7 @@ const ExcelPreview = ({
 
             const data =
               filteredRows
-                .slice(1)
+                .slice(headerRowIndex + 1)
                 .map(
                   (row) => {
 
@@ -647,14 +652,20 @@ Portfolio Analysis Report
 
 {
 columns.map(
-(column)=>(
+(column, colIndex)=>{
 
+  const isKyp = currentSheet.name === "KYP Analysis";
+  const frozenColCount = 3;
+  const frozenColWidth = 220;
+  const isFrozen = isKyp && colIndex < frozenColCount;
+  const frozenLeft = colIndex * frozenColWidth;
+
+  return (
 <th
 key={column}
 className={`
   sticky
   top-[-25px]
-  z-20
   border
   px-5
   py-3
@@ -664,8 +675,10 @@ className={`
   text-black
   whitespace-nowrap
 
+  ${ isFrozen ? "z-30" : "z-20" }
+
   ${
-    currentSheet.name === "KYP Analysis"
+    isKyp
 
     ?
 
@@ -708,14 +721,14 @@ className={`
   }
 
 `}
+style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 30 } : {}}
 >
 
 {column}
 
 </th>
-
-)
-
+  );
+}
 )
 
 }
@@ -746,9 +759,15 @@ key={rowIndex}
 
 {
 columns.map(
-(column)=>(
+(column, colIndex)=>{
 
+  const isKyp = currentSheet.name === "KYP Analysis";
+  const frozenColCount = 3;
+  const frozenColWidth = 220;
+  const isFrozen = isKyp && colIndex < frozenColCount;
+  const frozenLeft = colIndex * frozenColWidth;
 
+  return (
 <td
 key={column}
 className={`
@@ -762,7 +781,7 @@ className={`
   break-words
 
   ${
-    currentSheet.name === "KYP Analysis"
+    isKyp
 
     ?
 
@@ -806,15 +825,14 @@ className={`
   }
 
 `}
+style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 10, background: "white" } : {}}
 >
 
 {row[column]}
 
 </td>
-
-
-)
-
+  );
+}
 )
 
 }
