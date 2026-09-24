@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
-import PatentDetails from "@/components/patentdetails/";
+import PatentDetails from "@/components/patentdetails";
 import { config } from "@/config";
-import { BarLoader } from "react-spinners";
+import { BarLoader, ClipLoader } from "react-spinners";
 import { useQuery } from "@tanstack/react-query";
 import { GetSessionById } from "@/services/GetSessionById";
 import ExcelPreview from "@/components/ExcelPreview";
@@ -343,7 +343,7 @@ export default function SessionDetail() {
     return (
       <main className="min-h-screen flex justify-center items-center bg-white">
         <div className="flex flex-col gap-5 items-center">
-          <BarLoader color="red" />
+          <ClipLoader color="red" />
           <p className="text-slate-700 font-semibold animate-pulse">
             Loading Session...
           </p>
@@ -421,10 +421,12 @@ export default function SessionDetail() {
           className="
             flex items-center gap-2
             bg-[#b90000]
-            hover:bg-red-800
+            hover:bg-red-700
+            active:bg-red-800
             text-white
             px-3 py-2
             rounded-lg
+            cursor-pointer
             text-sm
             font-medium
             transition
@@ -638,7 +640,9 @@ export default function SessionDetail() {
             className="
               flex items-center justify-center gap-2
               bg-[#b90000]
-              hover:bg-red-800
+              hover:bg-red-700
+              active:bg-red-800
+              cursor-pointer
               text-white
               px-4
               sm:px-5
@@ -773,7 +777,7 @@ export default function SessionDetail() {
       {/* ============ Empty State ============ */}
       <section className="mx-auto container">
         {data.status === "pending" && (
-          <div className="min-h-screen pt-5">
+          <div className="h-full pt-5">
             <div className="bg-white rounded-xl border border-dashed border-slate-600 p-20 text-center">
               <UploadCloud size={48} className="mx-auto text-slate-500 mb-4" />
               <h3 className="text-xl font-medium text-slate-500 mb-2">

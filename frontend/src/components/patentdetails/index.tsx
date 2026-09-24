@@ -430,7 +430,7 @@ function PatentRow({
           {infringementJob?.status === 'completed' && (
             <button
               onClick={(e) => { e.stopPropagation(); onViewInfringement?.(p.patent_number, infringementJob.result); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#b90000] hover:bg-red-700 active:bg-red-800 cursor-pointer text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
             >
               <ShieldAlert size={12} />
               View Analysis
@@ -671,7 +671,7 @@ const PatentDetails = ({
 
             <select
               className="
-                bg-transparent 
+                bg-slate-700
                 text-[10px] 
                 text-slate-100 
                 font-bold 
