@@ -371,7 +371,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                     {/* Header */}
                     <div className="shrink-0 bg-slate-100 backdrop-blur border-b border-slate-200/60 px-6 py-5 flex justify-between items-start z-10 shadow-sm">
                         <div>
-                            <div className="flex items-center gap-3 text-rose-400 mb-2">
+                            <div className="flex items-center gap-3 text-[#b90000] mb-2">
                                 <ShieldAlert size={24} />
                                 <h2 className="text-2xl font-bold tracking-tight">Infringement Analysis</h2>
                             </div>
@@ -474,17 +474,8 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                             </div>
                         )}
 
-                        {/* Raw API data (collapsible debug) */}
-                        <div className="mt-6 pt-6 border-t border-slate-800">
-                            <details className="group cursor-pointer">
-                                <summary className="text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider focus:outline-none">
-                                    Show Raw API Data
-                                </summary>
-                                <div className="bg-slate-250 p-4 rounded-xl border border-slate-300 overflow-x-auto max-h-[300px] mt-2">
-                                    <pre className="text-[10px] text-slate-600 font-mono">{JSON.stringify(result, null, 2)}</pre>
-                                </div>
-                            </details>
-                        </div>
+                        
+                        
                     </div>
 
                     {/* Selection mode bottom bar */}
