@@ -590,7 +590,10 @@ currentSheet?.data?.length
 
 <table
   className={`
-    border-collapse
+    border-separate
+    border-spacing-0
+    border-t
+    border-l
     text-sm
     text-black
 
@@ -624,7 +627,8 @@ activeSheet === 0
     sticky
     top-[-25px]
     z-20
-    border
+    border-b
+    border-r
     px-5
     py-3
     bg-gray-100
@@ -666,7 +670,8 @@ key={column}
 className={`
   sticky
   top-[-25px]
-  border
+  border-b
+  border-r
   px-5
   py-3
   bg-gray-100
@@ -721,7 +726,7 @@ className={`
   }
 
 `}
-style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 30 } : {}}
+style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 30, backgroundClip: "padding-box" } : {}}
 >
 
 {column}
@@ -771,7 +776,8 @@ columns.map(
 <td
 key={column}
 className={`
-  border
+  border-b
+  border-r
   px-5
   py-3
   bg-white
@@ -825,7 +831,7 @@ className={`
   }
 
 `}
-style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 10, background: "white" } : {}}
+style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 10, background: "white", backgroundClip: "padding-box" } : {}}
 >
 
 {row[column]}
