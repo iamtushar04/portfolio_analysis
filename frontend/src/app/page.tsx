@@ -25,18 +25,22 @@ const Home = () => {
     queryFn: GetSessions,
   });
 
-  const deleteMutaion = useMutation({
-    mutationFn: DeleteSession,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["sessions"],
-      });
-      toast.success("Session deleted");
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+  const deleteMutation = useMutation({
+  mutationFn: DeleteSession,
+
+  onSuccess: () => {
+    queryClient.invalidateQueries({
+      queryKey: ["sessions"],
+    });
+
+    toast.success("Session deleted successfully");
+    setSessionToDelete(null);
+  },
+
+  onError: (error: any) => {
+    toast.error(error.message || "Failed to delete session");
+  },
+});
 
   const createMutaion = useMutation({
     mutationFn: CreateSession,
@@ -74,11 +78,28 @@ const Home = () => {
   };
 
   return (
-    <main className="min-h-screen bg-white text-slate-100 px-6 py-10 relative">
-      <div className="max-w-7xl mx-auto relative">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row justify-between md:items-end gap-6">
-          <div className="absolute top-8 right-1 z-50">
+    <>
+
+  {/* Fixed Header */}
+  <header
+    className="
+      sticky top-0
+      z-[100]
+      bg-white
+      border-b
+      border-slate-200
+      shadow-sm
+      px-6
+      py-4
+      flex
+      flex-col
+      md:flex-row
+      justify-between
+      md:items-end
+      gap-6
+    "
+  >
+          <div className="absolute top-8 right-7 z-50">
             <button
               type="button"
               onClick={handleLogout}
@@ -92,17 +113,17 @@ const Home = () => {
       
       rounded-xl
       
-      text-slate-800
+      text-slate-100
       
-      bg-#b90000
+      bg-[#b90000]
       
       border
       border-slate-300
       
       shadow-sm
       
-      hover:bg-slate-100
-      active:bg-slate-200
+      hover:bg-red-700
+      active:bg-red-800
       hover:shadow-md
       
       cursor-pointer
@@ -120,12 +141,12 @@ const Home = () => {
                 className="
           w-12 h-12
           rounded-2xl
-          bg-white
+          bg-[#b90000]
           flex items-center justify-center
           shadow-sm shadow-slate-500
           "
               >
-                <FolderOpen size={25} color="black" />
+                <FolderOpen size={25} color="white" />
               </div>
 
               <span
@@ -134,8 +155,8 @@ const Home = () => {
           rounded-full
           text-xs
           flex-col place-content-center
-          bg-slate-100
-          text-gray-600
+          bg-[#b90000]
+          text-gray-100
           font-semibold
           border border-indigo-500/20
           "
@@ -158,7 +179,7 @@ const Home = () => {
               Patent Portfolio Analysis
             </h1>
 
-            <p className="mt-3 text-slate-700 max-w-xl">
+            <p className="mt-3 text-slate-600 w-full">
               Manage, monitor and analyze your patent collections through
               intelligent portfolio insights.
             </p>
@@ -172,11 +193,11 @@ const Home = () => {
         flex items-center justify-center gap-2
         px-3 py-2
         rounded-xl
-        text-slate-700
-        bg-#b90000
+        text-slate-100
+        bg-[#b90000]
         border border-slate-200
-        hover:bg-slate-100
-        active:bg-slate-200
+        hover:bg-red-700
+        active:bg-red-800
         shadow-sm
         hover:shadow-md
         transition
@@ -188,6 +209,10 @@ const Home = () => {
           </button>
         </header>
 
+        <main className="min-h-screen bg-slate-100 text-slate-100 px-6 py-10 relative">
+
+      <div className="max-w-7xl mx-auto relative">
+        
         {/* Loader */}
         {isLoading ? (
           <div className="flex justify-center py-32">
@@ -205,13 +230,18 @@ gap-7 animate-fadeIn
 "
           >
             {data.map((s: any) => (
-              <SessionCard
-                key={s.id}
-                session={s}
-                onDelete={() => deleteMutaion.mutate(s.id)}
-                onClick={() => router.push(`/sessions/${s.id}`)}
-              />
-            ))}
+  <SessionCard
+    key={s.id}
+    session={s}
+    onDelete={() =>
+      setSessionToDelete({
+        id: s.id,
+        name: s.name,
+      })
+    }
+    onClick={() => router.push(`/sessions/${s.id}`)}
+  />
+))}
 
             {data.length === 0 && (
               <section className="flex items-center justify-center mt-5 min-h-[30vh]">
@@ -268,6 +298,7 @@ gap-7 animate-fadeIn
       fixed
       inset-0
       z-50
+      z-[999]
       flex
       items-center
       justify-center
@@ -378,59 +409,117 @@ gap-7 animate-fadeIn
         )}
 
         {/* DELETE CONFIRMATION MODAL */}
-        {sessionToDelete && (
-          <div
-            className="
+{sessionToDelete && (
+  <div
+    className="
       fixed
       inset-0
       z-50
       flex
       items-center
       justify-center
-      bg-black/70
-      backdrop-blur-md
-      p-5"
-            onClick={() => setSessionToDelete(null)}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="max-w-sm
+      bg-black/60
+      backdrop-blur-sm
+      p-5
+    "
+    onClick={() => setSessionToDelete(null)}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="
         w-full
-        bg-slate-900
-        border
-        border-slate-700
+        max-w-md
+        bg-white
         rounded-2xl
-        p-7"
-            >
-              <h3 className="text-xl font-bold mb-3">Delete Session?</h3>
+        border
+        border-slate-200
+        p-7
+        shadow-2xl
+      "
+    >
 
-              <p className="text-sm text-slate-400 leading-relaxed mb-6">
-                Are you sure you want to permanently delete
-                <span className="text-indigo-300 font-semibold">
-                  "{sessionToDelete.name}"
-                </span>
-                ? This will instantly stop all background processing and cannot
-                be undone.
-              </p>
+      <h3
+        className="
+          text-xl
+          font-semibold
+          text-slate-800
+          mb-3
+        "
+      >
+        Delete Session?
+      </h3>
 
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setSessionToDelete(null)}
-                  className="
-            px-4
+
+      <p
+        className="
+          text-sm
+          text-slate-600
+          leading-relaxed
+          mb-7
+        "
+      >
+        Are you sure you want to delete{" "}
+        <span className="font-semibold text-red-600">
+          "{sessionToDelete.name}"
+        </span>
+        ?
+        <br />
+        This action cannot be undone.
+      </p>
+
+
+      <div className="flex justify-end gap-3">
+
+        <button
+          type="button"
+          onClick={() => setSessionToDelete(null)}
+          className="
+            px-5
             py-2
             rounded-lg
-            bg-slate-800
-            hover:bg-slate-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            border
+            border-slate-300
+            text-slate-700
+            hover:bg-slate-100
+            transition
+            cursor-pointer
+          "
+        >
+          Cancel
+        </button>
+
+
+        <button
+          type="button"
+          disabled={deleteMutation.isPending}
+          onClick={() =>
+            deleteMutation.mutate(sessionToDelete.id)
+          }
+          className="
+            px-5
+            py-2
+            rounded-lg
+            bg-red-600
+            text-white
+            hover:bg-red-700
+            transition
+            cursor-pointer
+            disabled:opacity-50
+          "
+        >
+          {deleteMutation.isPending
+            ? "Deleting..."
+            : "Confirm Delete"}
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
       </div>
     </main>
+    </>
   );
 };
 export default Home;

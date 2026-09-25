@@ -549,7 +549,7 @@ const PatentDetails = ({
       <div className="w-full bg-white rounded-lg flex flex-col h-[calc(100vh-124px)] overflow-hidden">
 
   {/* Shared Horizontal Scroll */}
-  <div className="flex-1 min-h-0 overflow-x-auto custom-scrollbar">
+  <div className="flex-1 overflow-x-auto custom-scrollbar">
 
     {/* Table Width Container */}
     <div className="min-w-[1200px] h-full flex flex-col">
@@ -563,14 +563,14 @@ const PatentDetails = ({
           text-xs 
           uppercase 
           bg-slate-100 
-          text-slate-700 
+          text-slate-600 
           shrink-0 
           items-center
         "
       >
 
         {/* Checkbox */}
-        <div className="px-3 py-3 flex items-center justify-center">
+        <div className="px-3 py-3 flex items-center justify-center text-slate-700 z-10">
           <input
             type="checkbox"
             checked={
@@ -595,112 +595,127 @@ const PatentDetails = ({
 
 
         {/* Patent No */}
-        <div className="px-4 py-3 font-semibold">
+        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
           Patent No
         </div>
 
 
         {/* Title */}
-        <div className="px-4 py-3 font-semibold">
+        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
           Title & Assignee
         </div>
 
 
         {/* Technology */}
-        <div className="px-4 py-3 font-semibold">
+        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
           Technology
         </div>
 
 
         {/* Standards */}
-        <div className="px-4 py-3 font-semibold">
+        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
           Standards
         </div>
 
 
         {/* Citations */}
-        <div className="px-4 py-3 font-semibold text-center">
+        <div className="px-4 py-3 text-slate-700 z-10 font-semibold text-center">
           Citations
         </div>
 
 
         {/* Ranked Score */}
-        <div
-          className="
-            px-4 py-3 
-            font-semibold 
-            text-center 
-            flex 
-            flex-col 
-            items-center 
-            justify-center
-            border-l 
-            border-slate-700/50
-          "
-        >
+<div
+  className="
+    px-4
+    py-3
+    font-semibold
+    text-center
+    flex
+    flex-col
+    items-center
+    justify-center
+    border-l
+    border-slate-700/50
+  "
+>
+  <span className="text-slate-700 text-slate-700 z-10 mb-2">
+    Ranked Score
+  </span>
 
-          <span className="text-slate-500 mb-1">
-            Ranked Score
-          </span>
+  <div
+    className="
+      flex
+      items-center
+      gap-2
+      bg-slate-900/50
+      rounded-lg
+      px-2
+      py-1
+      relative
+      z-10
+    "
+  >
+    <span
+      className="
+        text-[9px]
+        uppercase
+        tracking-wider
+        text-slate-100
+        font-bold
+      "
+    >
+      By:
+    </span>
 
+    <select
+      className="
+        bg-slate-700
+        text-slate-100
+        text-[10px]
+        font-bold
+        rounded
+        px-2
+        py-1
+        outline-none
+        cursor-pointer
+        appearance-auto
+        hover:bg-slate-600
+        transition
+        relative
+        
+      "
+      value={sortBy}
+      onChange={(e) =>
+        onSortByChange(
+          e.target.value as "topic" | "subtopic"
+        )
+      }
+    >
+      <option
+        value="topic"
+        className="
+          bg-white
+          text-slate-800
+          font-semibold
+        "
+      >
+        Topic
+      </option>
 
-          <div
-            className="
-              flex 
-              items-center 
-              gap-1 
-              bg-slate-900/50 
-              rounded 
-              px-1.5 
-              py-0.5
-            "
-          >
-
-            <span
-              className="
-                text-[9px] 
-                uppercase 
-                tracking-wider 
-                text-slate-100 
-                font-bold
-              "
-            >
-              By:
-            </span>
-
-
-            <select
-              className="
-                bg-slate-700
-                text-[10px] 
-                text-slate-100 
-                font-bold 
-                outline-none 
-                cursor-pointer
-              "
-              value={sortBy}
-              onChange={(e) =>
-                onSortByChange(
-                  e.target.value as "topic" | "subtopic"
-                )
-              }
-            >
-
-              <option value="topic">
-                Topic
-              </option>
-
-              <option value="subtopic">
-                Subtopic
-              </option>
-
-            </select>
-
-          </div>
-
-        </div>
-
-
+      <option
+        value="subtopic"
+        className="
+          bg-white
+          text-slate-700
+          font-semibold
+        "
+      >
+        Subtopic
+      </option>
+    </select>
+  </div>
+</div>
         {/* Analysis */}
         <div
           className="
@@ -710,6 +725,7 @@ const PatentDetails = ({
             text-center 
             border-l 
             border-slate-200/50
+            text-slate-700 z-10
           "
         >
           Analysis

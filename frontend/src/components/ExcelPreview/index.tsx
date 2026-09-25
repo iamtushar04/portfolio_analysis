@@ -182,11 +182,13 @@ const ExcelPreview = ({
 
 
 
-      setSheets(parsedSheets);
+      const currentTab = activeSheet;
 
-      setActiveSheet(0);
+setSheets(parsedSheets);
 
-      setOpen(true);
+setActiveSheet(currentTab);
+
+setOpen(true);
 
 
 
@@ -295,7 +297,7 @@ const ExcelPreview = ({
           )
         }
 
-        className="
+        className="w-[150px]
           px-4
           py-2
           bg-green-200
@@ -471,6 +473,7 @@ const ExcelPreview = ({
                     className="
                       text-gray-600
                       hover:text-black
+                      cursor-pointer
                     "
 
                   >
@@ -598,8 +601,8 @@ currentSheet?.data?.length
   className={`
     border-separate
     border-spacing-0
-    border-t
-    border-l
+    
+    
     text-sm
     text-black
 

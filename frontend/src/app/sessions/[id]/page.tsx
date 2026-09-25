@@ -395,7 +395,7 @@ export default function SessionDetail() {
   const hasPatents = patentsList.length > 0;
 
   return (
-    <main className="w-full bg-white px-4 md:px-8 pt-5 pb-4">
+    <main className="w-full bg-white px-4 md:px-8 pb-4">
       {/* ============ Header ============ */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
   <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3">
@@ -606,6 +606,7 @@ export default function SessionDetail() {
                 px-4 py-2
                 rounded-xl
                 text-sm
+                cursor-pointer
                 font-medium
                 transition
                 disabled:opacity-50
@@ -775,32 +776,54 @@ export default function SessionDetail() {
       </section>
 
       {/* ============ Empty State ============ */}
-      <section className="mx-auto container">
-        {data.status === "pending" && (
-          <div className="h-full pt-5">
-            <div className="bg-white rounded-xl border border-dashed border-slate-600 p-20 text-center">
-              <UploadCloud size={48} className="mx-auto text-slate-500 mb-4" />
-              <h3 className="text-xl font-medium text-slate-500 mb-2">
-                Upload your Patent List
-              </h3>
-              <p className="text-slate-500 max-w-md mx-auto mb-6">
-                Upload an Excel (.xlsx) file containing patent numbers in the
-                first column to begin the automated analysis pipeline.
-              </p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="text-slate-500 hover:text-slate-600 font-medium hover:underline cursor-pointer"
-              >
-                Click to Browse Files
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+      <section className="bg-white fixed inset-0 flex items-center justify-center overflow-hidden">
+  {data.status === "pending" && (
+    <div className="w-full max-w-xl px-5">
+      <div
+        className="
+          bg-white
+          rounded-xl
+          border
+          border-dashed
+          border-slate-300
+          p-20
+          text-center
+          shadow-sm
+        "
+      >
+        <UploadCloud
+          size={48}
+          className="mx-auto text-slate-500 mb-4"
+        />
 
+        <h3 className="text-xl font-medium text-slate-500 mb-2">
+          Upload your Patent List
+        </h3>
+
+        <p className="text-slate-500 max-w-md mx-auto mb-6">
+          Upload an Excel (.xlsx) file containing patent numbers in the
+          first column to begin the automated analysis pipeline.
+        </p>
+
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="
+            text-slate-500
+            hover:text-slate-600
+            font-medium
+            hover:underline
+            cursor-pointer
+          "
+        >
+          Click to Browse Files
+        </button>
+      </div>
+    </div>
+  )}
+</section>
       {/* ============ Results + Export Modal ============ */}
       <section className="mx-auto container">
-        <div className="min-h-screen pt-5">
+        <div className="pt-5">
           {(data.status === "processing" || data.status === "completed") && (
             <div className="glass-panel rounded-xl overflow-hidden shadow-2xl">
               {(() => {
