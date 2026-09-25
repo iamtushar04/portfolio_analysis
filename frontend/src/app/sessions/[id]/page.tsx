@@ -371,19 +371,113 @@ export default function SessionDetail() {
 
   if (!data)
     return (
-      <main className="min-h-screen bg-white flex justify-center items-center">
-        <div className="p-20 text-center text-red-400">
-          <p className="text-xl font-bold mb-2">Session not found.</p>
-          <p className="text-sm text-slate-500 mb-4">Session ID: {sessionId}</p>
-          <button
-            onClick={() => router.push("/")}
-            className="cursor-pointer flex items-center justify-center gap-2 mt-4 text-gray-700 px-2 py-3 bg-white hover:underline text-sm"
-          >
-            <ArrowLeft size={15} color="red" />
-            <span>Back to Sessions</span>
-          </button>
-        </div>
-      </main>
+      <main className="min-h-screen bg-white flex justify-center items-center px-6">
+
+  <div
+    className="
+      w-full
+      max-w-md
+      p-10
+      text-center
+      border
+      border-slate-200
+      rounded-xl
+      shadow-sm
+      bg-white
+    "
+  >
+
+    <div
+      className="
+        w-16
+        h-16
+        mx-auto
+        mb-5
+        rounded-full
+        bg-red-50
+        flex
+        items-center
+        justify-center
+      "
+    >
+      <span
+        className="
+          text-3xl
+          font-bold
+        "
+        style={{
+          color: "#b90000"
+        }}
+      >
+        !
+      </span>
+    </div>
+
+
+    <p
+      className="
+        text-xl
+        font-bold
+        mb-3
+      "
+      style={{
+        color: "#b90000"
+      }}
+    >
+      Session not found.
+    </p>
+
+
+    <p
+      className="
+        text-sm
+        text-slate-500
+        mb-6
+      "
+    >
+      The requested session could not be found.
+      <br />
+      Session ID: {sessionId}
+    </p>
+
+
+
+    <button
+      onClick={() => router.push("/")}
+      className="
+        cursor-pointer
+        mx-auto
+        flex
+        items-center
+        justify-center
+        gap-2
+        text-gray-700
+        px-4
+        py-2.5
+        bg-white
+        border
+        border-slate-200
+        rounded-md
+        hover:underline
+        text-sm
+      "
+    >
+
+      <ArrowLeft
+        size={15}
+        color="#b90000"
+      />
+
+      <span>
+        Back to Sessions
+      </span>
+
+    </button>
+
+
+  </div>
+
+</main>
     );
 
   const progressPercentage =
@@ -628,8 +722,9 @@ export default function SessionDetail() {
         )}
 
 
-
+        {data.patents.length > 0 && (
         <ExcelPreview sessionId={sessionId}/>
+        )}
 
 
 
