@@ -423,7 +423,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
 
                             <button
                                 onClick={onClose}
-                                className="p-2.5 bg-slate-200 hover:bg-slate-300 rounded-full text-slate-600 transition-colors"
+                                className="p-2.5 bg-slate-200 hover:bg-slate-300 rounded-full text-slate-700 transition-colors cursor-pointer"
                             >
                                 <X size={20} />
                             </button>
