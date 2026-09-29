@@ -726,7 +726,7 @@ className={`
   }
 
 `}
-style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 30, backgroundClip: "padding-box" } : {}}
+style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 30, backgroundClip: "padding-box", width: `${frozenColWidth}px`, minWidth: `${frozenColWidth}px`, maxWidth: `${frozenColWidth}px` } : {}}
 >
 
 {column}
@@ -831,7 +831,7 @@ className={`
   }
 
 `}
-style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 10, background: "white", backgroundClip: "padding-box" } : {}}
+style={isFrozen ? { position: "sticky", left: `${frozenLeft}px`, zIndex: 10, background: "white", backgroundClip: "padding-box", width: `${frozenColWidth}px`, minWidth: `${frozenColWidth}px`, maxWidth: `${frozenColWidth}px` } : {}}
 >
 
 {row[column]}
