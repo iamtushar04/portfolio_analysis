@@ -445,16 +445,7 @@ function PatentRow({
                   Analysis Failed
                 </div>
               )}
-              {!infringementJob && p.has_cached_infringement && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onStartInfringement?.(p.patent_number); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
-                >
-                  <ShieldAlert size={12} />
-                  View Analysis
-                </button>
-              )}
-              {!infringementJob && !p.has_cached_infringement && <span className="text-slate-400">-</span>}
+              {!infringementJob && <span className="text-slate-400">-</span>}
             </>
           )}
         </div>
