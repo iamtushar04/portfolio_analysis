@@ -182,11 +182,13 @@ const ExcelPreview = ({
 
 
 
-      setSheets(parsedSheets);
+      const currentTab = activeSheet;
 
-      setActiveSheet(0);
+setSheets(parsedSheets);
 
-      setOpen(true);
+setActiveSheet(currentTab);
+
+setOpen(true);
 
 
 
@@ -295,12 +297,17 @@ const ExcelPreview = ({
           )
         }
 
-        className="
+        className="w-[150px]
           px-4
           py-2
-          bg-slate-600
-          text-white
-          rounded-md
+          bg-green-200
+          text-slate-700
+          font-semibold
+          hover:bg-green-300
+          cursor-pointer
+
+          transition
+          rounded-xl
         "
 
       >
@@ -425,6 +432,7 @@ const ExcelPreview = ({
                     <input
 
                       type="checkbox"
+                      
 
                       checked={translate}
 
@@ -465,6 +473,7 @@ const ExcelPreview = ({
                     className="
                       text-gray-600
                       hover:text-black
+                      cursor-pointer
                     "
 
                   >
@@ -529,17 +538,18 @@ const ExcelPreview = ({
                           py-2
                           rounded-md
                           text-sm
+                          cursor-pointer
 
                           ${
                             activeSheet === index
 
                             ?
 
-                            "bg-slate-600 text-white"
+                            "bg-[#b90000] text-white"
 
                             :
 
-                            "bg-gray-200 text-black"
+                            "bg-slate-100 text-slate-700"
 
                           }
 
@@ -574,9 +584,8 @@ const ExcelPreview = ({
 
 <div
   className="
-    flex-1
+    
     overflow-auto
-    p-5
     relative
   "
 >
@@ -592,8 +601,8 @@ currentSheet?.data?.length
   className={`
     border-separate
     border-spacing-0
-    border-t
-    border-l
+    
+    
     text-sm
     text-black
 
@@ -625,7 +634,7 @@ activeSheet === 0
   colSpan={columns.length}
   className="
     sticky
-    top-[-25px]
+    top-0
     z-20
     border-b
     border-r
@@ -669,7 +678,7 @@ columns.map(
 key={column}
 className={`
   sticky
-  top-[-25px]
+  top-0
   border-b
   border-r
   px-5
@@ -921,10 +930,13 @@ No data available
                     gap-2
                     px-5
                     py-2
-                    bg-slate-600
+                    bg-green-400
                     text-white
                     rounded-md
-                    hover:bg-slate-700
+                    hover:bg-green-500
+                    active:bg-green-600
+                    transition
+                    cursor-pointer
                     disabled:opacity-50
                   "
 

@@ -370,10 +370,11 @@ export default function ProductCard({
                 px-4 py-2
                 rounded-lg
                 text-sm font-semibold
-                bg-emerald-50
-                text-emerald-700
+                bg-emerald-500
+                text-white
+                cursor-pointer
                 border border-emerald-200
-                hover:bg-emerald-100
+                hover:bg-emerald-600
               "
             >
               <FileBarChart size={15}/>
