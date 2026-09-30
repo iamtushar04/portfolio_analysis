@@ -820,53 +820,6 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False,
         curr_row += 1
 
     # ---------------------------------------------------------
-    # 5. COMPETITORS SHEET
-    #    One merged block per patent; Forward Competitor and Backward
-    #    Competitor run side by side, one name per row.
-    # ---------------------------------------------------------
-    ws_comp = wb.create_sheet(title="Competitors")
-    ws_comp.views.sheetView[0].showGridLines = True
-    ws_comp.freeze_panes = "A2"
-
-    comp_headers = ["Patent Number", "Title", "Forward Competitor", "Backward Competitor"]
-    for col_num, h_text in enumerate(comp_headers, 1):
-        cell = ws_comp.cell(row=1, column=col_num, value=h_text)
-        cell.font = header_font
-        cell.fill = fwd_header_fill if col_num == 3 else (
-            bwd_header_fill if col_num == 4 else navy_header_fill)
-        cell.alignment = align_center
-        cell.border = header_border
-    ws_comp.row_dimensions[1].height = 26
-
-    curr_row = 2
-    for p_idx, p in enumerate(patents):
-        pat_num = p.get("patent_number", "")
-        pat_title = p.get("title", "")
-
-        fwd_comps = p.get("forward_competitors") or []
-        bwd_comps = p.get("backward_competitors") or []
-
-        # Join all competitors into a single comma-separated string
-        fname_str = ", ".join([c for c in fwd_comps if c]) or "—"
-        bname_str = ", ".join([c for c in bwd_comps if c]) or "—"
-
-        block_fill = block_fill_b if p_idx % 2 else block_fill_a
-
-        c_pnum = ws_comp.cell(row=curr_row, column=1, value=pat_num)
-        c_pttl = ws_comp.cell(row=curr_row, column=2, value=pat_title)
-        c_fname = ws_comp.cell(row=curr_row, column=3, value=fname_str)
-        c_bname = ws_comp.cell(row=curr_row, column=4, value=bname_str)
-
-        for c, align in [(c_pnum, align_center_mid), (c_pttl, align_left_mid),
-                         (c_fname, align_left_mid), (c_bname, align_left_mid)]:
-            c.font = body_font
-            c.border = block_close_border
-            c.alignment = align
-            c.fill = block_fill
-
-        curr_row += 1
-
-    # ---------------------------------------------------------
     # 6. RANKED ASSIGNEES SHEET
     # ---------------------------------------------------------
     ws_ranked = wb.create_sheet(title="Ranked Assignees")
@@ -875,7 +828,6 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False,
 
     ranked_headers = [
         "Patent Number", "Title", "Assignee", 
-        "Topic Score", "Topic Reason", "Topic Source",
         "Subtopic Score", "Subtopic Reason", "Subtopic Source"
     ]
     for col_num, h_text in enumerate(ranked_headers, 1):
@@ -896,19 +848,16 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False,
         
         if not ranked_assignees:
             # Add an empty row for patents with no ranked assignees
-            for col_idx, val in enumerate([pat_num, pat_title, "—", "—", "—", "—", "—", "—", "—"], start=1):
+            for col_idx, val in enumerate([pat_num, pat_title, "—", "—", "—", "—"], start=1):
                 c = ws_ranked.cell(row=curr_row, column=col_idx, value=val)
                 c.font = body_font
                 c.border = block_close_border
-                c.alignment = align_center_mid if col_idx in (1, 4, 7) else align_left_mid
+                c.alignment = align_center_mid if col_idx in (1, 4) else align_left_mid
                 c.fill = block_fill
             curr_row += 1
             continue
             
         assignee_names = []
-        all_t_scores = []
-        all_t_reasons = []
-        all_t_sources = []
         all_s_scores = []
         all_s_reasons = []
         all_s_sources = []
@@ -917,14 +866,8 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False,
             a_name = ra.get("name", "")
             assignee_names.append(a_name)
             
-            t_evals = ra.get("topic_evals", [])
-            if not t_evals and "topic_eval" in ra: t_evals = [ra.get("topic_eval")]
             s_evals = ra.get("subtopic_evals", [])
             if not s_evals and "subtopic_eval" in ra: s_evals = [ra.get("subtopic_eval")]
-            
-            t_scores = "\n".join(f"{e.get('term', 'Topic')}: {e.get('score', '')}" for e in t_evals if e)
-            t_reasons = "\n\n".join(f"{e.get('term', 'Topic')}:\n{e.get('reason', '')}" for e in t_evals if e)
-            t_sources = "\n".join(f"{e.get('source', '')}" for e in t_evals if e)
             
             s_scores = "\n".join(f"{e.get('term', 'Subtopic')}: {e.get('score', '')}" for e in s_evals if e)
             s_reasons = "\n\n".join(f"{e.get('term', 'Subtopic')}:\n{e.get('reason', '')}" for e in s_evals if e)
@@ -932,9 +875,6 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False,
             
             prefix = f"[{a_name}]\n" if len(ranked_assignees) > 1 else ""
             
-            all_t_scores.append(f"{prefix}{t_scores}")
-            all_t_reasons.append(f"{prefix}{t_reasons}")
-            all_t_sources.append(f"{prefix}{t_sources}")
             all_s_scores.append(f"{prefix}{s_scores}")
             all_s_reasons.append(f"{prefix}{s_reasons}")
             all_s_sources.append(f"{prefix}{s_sources}")
@@ -943,9 +883,6 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False,
             pat_num, 
             pat_title, 
             "\n\n".join(assignee_names),
-            "\n\n---\n\n".join(all_t_scores),
-            "\n\n---\n\n".join(all_t_reasons),
-            "\n\n---\n\n".join(all_t_sources),
             "\n\n---\n\n".join(all_s_scores),
             "\n\n---\n\n".join(all_s_reasons),
             "\n\n---\n\n".join(all_s_sources)
@@ -955,7 +892,7 @@ def generate_session_excel(session_data: dict, db=None, translate: bool = False,
             c = ws_ranked.cell(row=curr_row, column=col_idx, value=val)
             c.font = body_font
             c.border = block_close_border
-            c.alignment = align_center_mid if col_idx in (1, 4, 7) else align_left_mid
+            c.alignment = align_center_mid if col_idx in (1, 4) else align_left_mid
             c.fill = block_fill
             
         curr_row += 1

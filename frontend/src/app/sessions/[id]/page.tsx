@@ -33,7 +33,6 @@ export default function SessionDetail() {
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(
     new Set(),
   );
-  const [sortBy, setSortBy] = useState<"topic" | "subtopic">("subtopic");
 
   const [infringementJobs, setInfringementJobs] = useState<Map<string, { job_id: string; status: string; result?: any }>>(new Map());
   const [openInfringementDrawer, setOpenInfringementDrawer] = useState<{ patent_number: string; result: any } | null>(null);
@@ -152,6 +151,9 @@ export default function SessionDetail() {
     return () => clearInterval(interval);
   }, [infringementJobs]);
 
+
+
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -225,7 +227,7 @@ export default function SessionDetail() {
     const token = localStorage.getItem("token");
     axios
       .get(`${API_BASE}/api/sessions/${sessionId}/export`, {
-        params: { translate, sort_by: sortBy },
+        params: { translate, sort_by: "subtopic" },
         headers: { Authorization: `Bearer ${token}` },
         responseType: "blob",
       })
@@ -259,7 +261,7 @@ export default function SessionDetail() {
         `${API_BASE}/api/sessions/${sessionId}/export_custom`,
         {
           patent_ids: Array.from(selectedForExport),
-          sort_by: sortBy,
+          sort_by: "subtopic",
         },
         {
           params: { translate },
@@ -566,14 +568,22 @@ export default function SessionDetail() {
         </div>
 
 
-        {/* Processing */}
-        {data.status === "processing" && (
-          <RefreshCw
-            size={18}
-            className="text-amber-500 animate-spin shrink-0"
-          />
-        )}
+        {/* Processing/Background Indicators */}
+        <div className="flex items-center gap-3">
+          {data.status === "processing" && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-sm font-medium animate-pulse shadow-sm">
+              <RefreshCw size={14} className="animate-spin" />
+              KYP Analysis Processing
+            </div>
+          )}
 
+          {data.assignee_ranking_status === "processing" && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 text-sm font-medium animate-pulse shadow-sm">
+              <RefreshCw size={14} className="animate-spin" />
+              Ranking Assignees
+            </div>
+          )}
+        </div>
 
         {/* Status */}
         <div
@@ -588,7 +598,7 @@ export default function SessionDetail() {
           "
         >
           <span className="text-slate-500">
-            Status
+            Session Status
           </span>
 
           <span
@@ -1001,8 +1011,7 @@ export default function SessionDetail() {
                         );
                       }
                     }}
-                    sortBy={sortBy}
-                    onSortByChange={setSortBy}
+
                     infringementJobs={infringementJobs}
                     onViewInfringement={(patent_number, result) => setOpenInfringementDrawer({ patent_number, result })}
                     onStartInfringement={openInfringementModal}
@@ -1061,7 +1070,7 @@ export default function SessionDetail() {
               </h3>
               <p className="text-slate-400 text-sm mb-6">
                 {selectedForExport.size > 0
-                  ? `You have selected ${selectedForExport.size} patent(s). They will be ranked by ${sortBy === "topic" ? "Topic" : "Subtopic"}.`
+                  ? `You have selected ${selectedForExport.size} patent(s). They will be ranked by Subtopic.`
                   : "Would you like to translate foreign company names (Assignees, Competitors) to English?"}
               </p>
 

@@ -185,7 +185,7 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
   const bwdCitRef = useRef<HTMLDivElement>(null);
 
   const [citSearch, setCitSearch] = useState("");
-  const [rankBy, setRankBy] = useState<"topic" | "subtopic">("topic");
+
 
   const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
     ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -368,31 +368,6 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
                       Relevance-Ranked Assignees
                     </h3>
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 rounded px-2 py-1">
-                        <span className="text-[9px] uppercase tracking-wider text-slate-200 font-bold">
-                          Rank By:
-                        </span>
-                        <select
-                          className="bg-transparent text-xs text-slate-100 font-medium outline-none border-none cursor-pointer"
-                          value={rankBy}
-                          onChange={(e) =>
-                            setRankBy(e.target.value as "topic" | "subtopic")
-                          }
-                        >
-                          <option
-                            className="bg-slate-800 text-slate-100"
-                            value="topic"
-                          >
-                            Topic
-                          </option>
-                          <option
-                            className="bg-slate-800 text-slate-100"
-                            value="subtopic"
-                          >
-                            Subtopic
-                          </option>
-                        </select>
-                      </div>
                       <span className="text-[10px] font-semibold text-amber-500/70">
                         Top {patent.ranked_forward_assignees?.length || 0}
                       </span>
@@ -420,14 +395,8 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
                         const sortedList = [
                           ...patent.ranked_forward_assignees,
                         ].sort((a: any, b: any) => {
-                          const scoreA =
-                            rankBy === "topic"
-                              ? a.topic_avg || 0
-                              : a.subtopic_avg || 0;
-                          const scoreB =
-                            rankBy === "topic"
-                              ? b.topic_avg || 0
-                              : b.subtopic_avg || 0;
+                          const scoreA = a.subtopic_avg || 0;
+                          const scoreB = b.subtopic_avg || 0;
                           return scoreB - scoreA;
                         });
                         return sortedList.map((assignee: any, i: number) => {
@@ -454,10 +423,7 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
                                   ),
                                 )
                               : 0;
-                          const activeScore =
-                            rankBy === "topic"
-                              ? assignee.topic_avg || 0
-                              : assignee.subtopic_avg || 0;
+                          const activeScore = assignee.subtopic_avg || 0;
 
                           return (
                             <div

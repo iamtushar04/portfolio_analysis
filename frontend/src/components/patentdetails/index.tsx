@@ -79,7 +79,6 @@ function PatentRow({
   p,
   isSelected,
   onSelect,
-  sortBy,
   isChecked,
   onToggleCheck,
   infringementJob,
@@ -89,7 +88,6 @@ function PatentRow({
   p: any;
   isSelected: boolean;
   onSelect: () => void;
-  sortBy: "topic" | "subtopic";
   isChecked: boolean;
   onToggleCheck: (id: string) => void;
   infringementJob?: { status: string; result?: any };
@@ -117,9 +115,7 @@ function PatentRow({
   let topicScore = 0;
   if (p.ranked_forward_assignees && p.ranked_forward_assignees.length > 0) {
     const sumAvg = p.ranked_forward_assignees.reduce((acc: number, ra: any) => {
-      return (
-        acc + (sortBy === "topic" ? ra.topic_avg || 0 : ra.subtopic_avg || 0)
-      );
+      return acc + (ra.subtopic_avg || 0);
     }, 0);
     const avgScore = sumAvg / p.ranked_forward_assignees.length;
     topicScore = avgScore * 10;
@@ -460,8 +456,6 @@ const PatentDetails = ({
   selectedForExport,
   onToggleExport,
   onSelectAll,
-  sortBy,
-  onSortByChange,
   infringementJobs,
   onViewInfringement,
   onStartInfringement,
@@ -471,8 +465,6 @@ const PatentDetails = ({
   selectedForExport: Set<string>;
   onToggleExport: (id: string) => void;
   onSelectAll: () => void;
-  sortBy: "topic" | "subtopic";
-  onSortByChange: (val: "topic" | "subtopic") => void;
   infringementJobs?: Map<string, { job_id: string; status: string; result?: any }>;
   onViewInfringement?: (patent_number: string, result: any) => void;
   onStartInfringement?: (patent_number: string) => void;
@@ -486,10 +478,7 @@ const PatentDetails = ({
         if (p.ranked_forward_assignees && p.ranked_forward_assignees.length > 0) {
           const sumAvg = p.ranked_forward_assignees.reduce(
             (acc: number, ra: any) => {
-              return (
-                acc +
-                (sortBy === "topic" ? ra.topic_avg || 0 : ra.subtopic_avg || 0)
-              );
+              return acc + (ra.subtopic_avg || 0);
             },
             0,
           );
@@ -503,7 +492,7 @@ const PatentDetails = ({
 
       return getMergedScore(b) - getMergedScore(a);
     });
-  }, [patents, sortBy]);
+  }, [patents]);
 
   useEffect(() => {
     if (!selectedPatent) return;
@@ -547,16 +536,16 @@ const PatentDetails = ({
     <>
       <div className="w-full bg-white rounded-lg flex flex-col h-[calc(100vh-124px)] overflow-hidden">
 
-  {/* Shared Horizontal Scroll */}
-  <div className="flex-1 overflow-x-auto custom-scrollbar">
+        {/* Shared Horizontal Scroll */}
+        <div className="flex-1 overflow-x-auto custom-scrollbar">
 
-    {/* Table Width Container */}
-    <div className="min-w-[1200px] h-full flex flex-col">
+          {/* Table Width Container */}
+          <div className="min-w-[1200px] h-full flex flex-col">
 
 
-      {/* Sticky Header */}
-      <div
-        className="
+            {/* Sticky Header */}
+            <div
+              className="
           grid 
           grid-cols-[40px_160px_minmax(200px,2fr)_minmax(180px,1.5fr)_minmax(120px,1fr)_120px_140px_160px]
           text-xs 
@@ -566,66 +555,66 @@ const PatentDetails = ({
           shrink-0 
           items-center
         "
-      >
+            >
 
-        {/* Checkbox */}
-        <div className="px-3 py-3 flex items-center justify-center text-slate-700 z-10">
-          <input
-            type="checkbox"
-            checked={
-              patents.length > 0 &&
-              selectedForExport.size ===
-                patents.filter(
-                  (p: any) =>
-                    p.status !== "pending" &&
-                    p.status !== "failed"
-                ).length
-            }
-            onChange={onSelectAll}
-            className="
+              {/* Checkbox */}
+              <div className="px-3 py-3 flex items-center justify-center text-slate-700 z-10">
+                <input
+                  type="checkbox"
+                  checked={
+                    patents.length > 0 &&
+                    selectedForExport.size ===
+                    patents.filter(
+                      (p: any) =>
+                        p.status !== "pending" &&
+                        p.status !== "failed"
+                    ).length
+                  }
+                  onChange={onSelectAll}
+                  className="
               cursor-pointer 
               w-4 h-4 
               rounded 
               bg-slate-800 
               accent-indigo-500
             "
-          />
-        </div>
+                />
+              </div>
 
 
-        {/* Patent No */}
-        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
-          Patent No
-        </div>
+              {/* Patent No */}
+              <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
+                Patent No
+              </div>
 
 
-        {/* Title */}
-        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
-          Title & Assignee
-        </div>
+              {/* Title */}
+              <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
+                Title & Assignee
+              </div>
 
 
-        {/* Technology */}
-        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
-          Technology
-        </div>
+              {/* Technology */}
+              <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
+                Technology
+              </div>
 
 
-        {/* Standards */}
-        <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
-          Standards
-        </div>
+              {/* Standards */}
+              <div className="px-4 py-3 text-slate-700 z-10 font-semibold">
+                Standards
+              </div>
 
 
-        {/* Citations */}
-        <div className="px-4 py-3 text-slate-700 z-10 font-semibold text-center">
-          Citations
-        </div>
+              {/* Citations */}
+              <div className="px-4 py-3 text-slate-700 z-10 font-semibold text-center">
+                Citations
+              </div>
 
 
-        {/* Ranked Score */}
-<div
-  className="
+              {/* Ranked Score */}
+              <div
+                className="
     px-4
     py-3
     font-semibold
@@ -637,87 +626,14 @@ const PatentDetails = ({
     border-l
     border-slate-700/50
   "
->
-  <span className="text-slate-700 text-slate-700 z-10 mb-2">
-    Ranked Score
-  </span>
-
-  <div
-    className="
-      flex
-      items-center
-      gap-2
-      bg-slate-900/50
-      rounded-lg
-      px-2
-      py-1
-      relative
-      z-10
-    "
-  >
-    <span
-      className="
-        text-[9px]
-        uppercase
-        tracking-wider
-        text-slate-100
-        font-bold
-      "
-    >
-      By:
-    </span>
-
-    <select
-      className="
-        bg-slate-700
-        text-slate-100
-        text-[10px]
-        font-bold
-        rounded
-        px-2
-        py-1
-        outline-none
-        cursor-pointer
-        appearance-auto
-        hover:bg-slate-600
-        transition
-        relative
-        
-      "
-      value={sortBy}
-      onChange={(e) =>
-        onSortByChange(
-          e.target.value as "topic" | "subtopic"
-        )
-      }
-    >
-      <option
-        value="topic"
-        className="
-          bg-white
-          text-slate-800
-          font-semibold
-        "
-      >
-        Topic
-      </option>
-
-      <option
-        value="subtopic"
-        className="
-          bg-white
-          text-slate-700
-          font-semibold
-        "
-      >
-        Subtopic
-      </option>
-    </select>
-  </div>
-</div>
-        {/* Analysis */}
-        <div
-          className="
+              >
+                <span className="text-slate-700 text-slate-700 z-10 mb-2">
+                  Ranked Score
+                </span>
+              </div>
+              {/* Analysis */}
+              <div
+                className="
             px-4 
             py-3 
             font-semibold 
@@ -726,98 +642,98 @@ const PatentDetails = ({
             border-slate-200/50
             text-slate-700 z-10
           "
-        >
-          Analysis
-        </div>
+              >
+                Analysis
+              </div>
 
 
-      </div>
+            </div>
 
 
 
-      {/* Virtuoso Vertical Scroll Area */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+            {/* Virtuoso Vertical Scroll Area */}
+            <div className="flex-1 min-h-0 overflow-hidden">
 
-        <Virtuoso
+              <Virtuoso
 
-          className="
+                className="
             h-full 
             w-full 
             custom-scrollbar
           "
 
-          data={sortedPatents}
+                data={sortedPatents}
 
-          itemContent={(_index, p) => (
+                itemContent={(_index, p) => (
 
-            <PatentRow
+                  <PatentRow
 
-              p={p}
+                    p={p}
 
-              isSelected={
-                selectedPatent?.patent_number ===
-                p.patent_number
-              }
+                    isSelected={
+                      selectedPatent?.patent_number ===
+                      p.patent_number
+                    }
 
-              onSelect={() =>
-                setSelectedPatent(p)
-              }
-
-              sortBy={sortBy}
-
-              isChecked={
-                selectedForExport.has(
-                  p.patent_number
-                )
-              }
-
-              onToggleCheck={
-                onToggleExport
-              }
+                    onSelect={() =>
+                      setSelectedPatent(p)
+                    }
 
 
-              infringementJob={
-                infringementJobs?.get(
-                  p.patent_number
-                )
-              }
+
+                    isChecked={
+                      selectedForExport.has(
+                        p.patent_number
+                      )
+                    }
+
+                    onToggleCheck={
+                      onToggleExport
+                    }
 
 
-              onViewInfringement={
-                onViewInfringement
-              }
+                    infringementJob={
+                      infringementJobs?.get(
+                        p.patent_number
+                      )
+                    }
 
 
-              onStartInfringement={
-                onStartInfringement
-              }
+                    onViewInfringement={
+                      onViewInfringement
+                    }
 
-            />
 
-          )}
+                    onStartInfringement={
+                      onStartInfringement
+                    }
 
+                  />
+
+                )}
+
+              />
+
+            </div>
+
+
+          </div>
+
+        </div>
+
+
+
+        {/* Slide-Out Drawer */}
+        <PatentDrawer
+          patent={selectedPatent}
+          isRankingAssignees={isRankingAssignees}
+          onClose={() =>
+            setSelectedPatent(null)
+          }
         />
 
-      </div>
 
-
-    </div>
-
-  </div>
-
-
-
-  {/* Slide-Out Drawer */}
-  <PatentDrawer
-    patent={selectedPatent}
-    isRankingAssignees={isRankingAssignees}
-    onClose={() =>
-      setSelectedPatent(null)
-    }
-  />
-
-
-</div>    </>
+      </div>    </>
   );
 };
 export default PatentDetails;
