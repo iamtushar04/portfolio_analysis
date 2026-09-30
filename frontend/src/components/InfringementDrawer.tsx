@@ -131,6 +131,13 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
 
     const fetchCachedCharts = async () => {
         if (!patentNumber) return;
+        
+        // PRIVACY FIX: Only fetch cache if the user has explicitly requested analysis for this patent locally
+        const unlocked = JSON.parse(localStorage.getItem('unlocked_claim_charts') || '[]');
+        if (!unlocked.includes(patentNumber)) {
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(
@@ -237,6 +244,13 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
             indices.forEach(i => next.add(i));
             return next;
         });
+
+        // Mark as unlocked for this user so fetchCachedCharts can see it when drawer reopens
+        const unlocked = JSON.parse(localStorage.getItem('unlocked_claim_charts') || '[]');
+        if (!unlocked.includes(patentNumber)) {
+            unlocked.push(patentNumber);
+            localStorage.setItem('unlocked_claim_charts', JSON.stringify(unlocked));
+        }
 
         try {
             const token = localStorage.getItem('token');

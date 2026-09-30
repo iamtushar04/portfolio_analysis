@@ -421,36 +421,42 @@ function PatentRow({
 
         {/* Infringement Analysis Action */}
         <div className="px-4 py-4 flex justify-center border-l border-slate-200/50 h-full items-center">
-          {infringementJob?.status === 'running' && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider animate-pulse">
-              <Loader2 size={12} className="animate-spin" />
-              Analyzing
-            </div>
+          {isPending || isFailed ? (
+            <span className="text-slate-400">-</span>
+          ) : (
+            <>
+              {infringementJob?.status === 'running' && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                  <Loader2 size={12} className="animate-spin" />
+                  Analyzing
+                </div>
+              )}
+              {infringementJob?.status === 'completed' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onViewInfringement?.(p.patent_number, infringementJob.result); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
+                >
+                  <ShieldAlert size={12} />
+                  View Analysis
+                </button>
+              )}
+              {infringementJob?.status === 'error' && (
+                <div className="text-[10px] text-rose-400 font-bold uppercase tracking-wider text-center">
+                  Analysis Failed
+                </div>
+              )}
+              {!infringementJob && p.has_cached_infringement && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onStartInfringement?.(p.patent_number); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
+                >
+                  <ShieldAlert size={12} />
+                  View Analysis
+                </button>
+              )}
+              {!infringementJob && !p.has_cached_infringement && <span className="text-slate-400">-</span>}
+            </>
           )}
-          {infringementJob?.status === 'completed' && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onViewInfringement?.(p.patent_number, infringementJob.result); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
-            >
-              <ShieldAlert size={12} />
-              View Analysis
-            </button>
-          )}
-          {infringementJob?.status === 'error' && (
-            <div className="text-[10px] text-rose-400 font-bold uppercase tracking-wider text-center">
-              Analysis Failed
-            </div>
-          )}
-          {!infringementJob && p.has_cached_infringement && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onStartInfringement?.(p.patent_number); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-rose-600/20"
-            >
-              <ShieldAlert size={12} />
-              View Analysis
-            </button>
-          )}
-          {!infringementJob && !p.has_cached_infringement && <span className="text-slate-400">-</span>}
         </div>
       </div>
     </div>
@@ -459,6 +465,7 @@ function PatentRow({
 
 const PatentDetails = ({
   patents,
+  isRankingAssignees,
   selectedForExport,
   onToggleExport,
   onSelectAll,
@@ -469,6 +476,7 @@ const PatentDetails = ({
   onStartInfringement,
 }: {
   patents: any[];
+  isRankingAssignees?: boolean;
   selectedForExport: Set<string>;
   onToggleExport: (id: string) => void;
   onSelectAll: () => void;
@@ -794,13 +802,11 @@ const PatentDetails = ({
 
   {/* Slide-Out Drawer */}
   <PatentDrawer
-
     patent={selectedPatent}
-
+    isRankingAssignees={isRankingAssignees}
     onClose={() =>
       setSelectedPatent(null)
     }
-
   />
 
 

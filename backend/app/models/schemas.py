@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 # pyrefly: ignore [missing-import]
@@ -15,6 +15,8 @@ class Session(Base):
     processed_patents = Column(Integer, default=0)
     owner_id = Column(String, index=True, nullable=True) # Deterministic UUID from external auth
     kyp_status = Column(String, default="pending") # pending, processing, completed, error
+    # Status for Phase 2 session-level assignee ranking (pending, processing, completed, error, skipped)
+    assignee_ranking_status = Column(String, default="pending")
     
     patents = relationship("PatentData", back_populates="session", cascade="all, delete")
 
@@ -94,4 +96,39 @@ class ClaimChartCache(Base):
     company = Column(String, index=True, nullable=False)
     model = Column(String, index=True, nullable=False)
     result_data = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SessionAssigneeMap(Base):
+    """
+    Session-level deduplicated assignee ranking results (Phase 2 output).
+
+    One row per unique (session_id, assignee_name) pair.
+    Populated by the Phase 2 background task after ALL patents in a session
+    have completed Phase 1 (Wissen + taxonomy + filters + Redis accumulation).
+
+    Fields:
+        assignee_name      - Original name as it appeared in citations
+        normalized_name    - Lowercased/cleaned name (for cache lookups)
+        cited_by_patents   - JSON list of input patent numbers that cited this assignee
+        topics_collected   - Union of ALL topics from patents that cited this assignee
+        subtopics_collected- Union of ALL subtopics from patents that cited this assignee
+        perplexity_scores  - JSON dict: {"<term>": {"score": int, "reason": str, "source": str, "term_type": str}}
+        topic_avg          - Average Perplexity score across evaluated topics (null if topics not evaluated)
+        subtopic_avg       - Average Perplexity score across evaluated subtopics
+        passes_threshold   - True if max score across all terms >= configured threshold (default 5)
+    """
+    __tablename__ = "session_assignee_map"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), index=True)
+    assignee_name = Column(String, index=True)          # original form
+    normalized_name = Column(String, index=True)        # for AssigneeRelevanceCache lookup
+    cited_by_patents = Column(JSON, nullable=True)      # ["US12345B2", "US67890A1"]
+    topics_collected = Column(JSON, nullable=True)      # ["5G NR", "Antenna Design"]
+    subtopics_collected = Column(JSON, nullable=True)   # ["Beam Mgmt", "MIMO"]
+    perplexity_scores = Column(JSON, nullable=True)     # {term: {score, reason, source, term_type}}
+    topic_avg = Column(Float, nullable=True)            # null when topics not evaluated
+    subtopic_avg = Column(Float, nullable=True)
+    passes_threshold = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)

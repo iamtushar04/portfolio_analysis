@@ -29,4 +29,21 @@ class Settings:
     ENABLE_ASSIGNEE_RANKING_CACHE: bool = os.getenv("ENABLE_ASSIGNEE_RANKING_CACHE", "true").lower() == "true"
     CACHE_EXPIRY_DAYS: int = int(os.getenv("CACHE_EXPIRY_DAYS", "0"))
 
+    # -----------------------------------------------------------------------
+    # Session-level assignee ranking optimisation (two-phase pipeline)
+    # -----------------------------------------------------------------------
+
+    # Which taxonomy term types to send to Perplexity.
+    # Options: "subtopic" | "topic" | "topic,subtopic"
+    # Change to "topic,subtopic" to evaluate both layers.
+    ASSIGNEE_RANKING_TERM_TYPES: list = [
+        t.strip()
+        for t in os.getenv("ASSIGNEE_RANKING_TERM_TYPES", "subtopic").split(",")
+        if t.strip()
+    ]
+
+    # Assignee pre-filters (applied in Phase 1, before Redis accumulation)
+    ENABLE_JURISDICTION_FILTER: bool = os.getenv("ENABLE_JURISDICTION_FILTER", "true").lower() == "true"
+    ENABLE_OC_FILTER: bool = os.getenv("ENABLE_OC_FILTER", "true").lower() == "true"
+
 settings = Settings()

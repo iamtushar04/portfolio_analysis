@@ -49,8 +49,11 @@ export default function SessionDetail() {
     queryFn: () => GetSessionById(sessionId),
     enabled: !!sessionId, // FIX: don't fire the query before the id exists
     // FIX: poll while processing so the progress bar / KYP status update live
-    refetchInterval: (query) =>
-      (query.state.data as any)?.status === "processing" ? 5000 : false,
+    refetchInterval: (query) => {
+      const data = query.state.data as any;
+      if (!data) return false;
+      return (data.status === "processing" || data.assignee_ranking_status === "processing") ? 5000 : false;
+    },
   });
 
   // FIX: toasts are side effects — must not run during render
@@ -63,9 +66,10 @@ export default function SessionDetail() {
   useEffect(() => {
     if (!data?.patents) return;
 
-    // 1. Restore completed jobs
+    // 1. Restore completed jobs (ONLY if user has previously unlocked/analyzed this locally)
+    const unlocked = JSON.parse(localStorage.getItem('unlocked_infringement') || '[]');
     const cachedPatents = data.patents.filter(
-      (p: any) => p.has_cached_infringement && !infringementJobs.has(p.patent_number)
+      (p: any) => p.has_cached_infringement && !infringementJobs.has(p.patent_number) && unlocked.includes(p.patent_number)
     );
 
     // 2. Restore running jobs
@@ -315,6 +319,12 @@ export default function SessionDetail() {
 
       if (res.data.status === 'completed') {
         // Cache hit!
+        const unlocked = JSON.parse(localStorage.getItem('unlocked_infringement') || '[]');
+        if (!unlocked.includes(patentId)) {
+          unlocked.push(patentId);
+          localStorage.setItem('unlocked_infringement', JSON.stringify(unlocked));
+        }
+
         toast.success("Analysis loaded from cache!", { id: startToast });
         setInfringementJobs(prev => {
           const next = new Map(prev);
@@ -324,6 +334,12 @@ export default function SessionDetail() {
         setOpenInfringementDrawer({ patent_number: patentId, result: res.data.result });
       } else {
         // New run
+        const unlocked = JSON.parse(localStorage.getItem('unlocked_infringement') || '[]');
+        if (!unlocked.includes(patentId)) {
+          unlocked.push(patentId);
+          localStorage.setItem('unlocked_infringement', JSON.stringify(unlocked));
+        }
+
         toast.success("Analysis started! See the patent row for progress.", { id: startToast });
         setInfringementJobs(prev => {
           const next = new Map(prev);
@@ -696,7 +712,7 @@ export default function SessionDetail() {
 
       {/* ============ Processing Progress ============ */}
       <section className="mx-auto container">
-        {data.status === "processing" && (
+        {(data.status === "processing" || data.assignee_ranking_status === "processing") && (
           // FIX: was a syntax error — two siblings inside "&&" plus an illegal "//" JSX
           // comment. Wrapped both in a Fragment and removed the bad comment.
           <>
@@ -755,14 +771,41 @@ export default function SessionDetail() {
                     <path
                       className="opacity-75"
                       fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>
+                    <strong>KYP Analysis is finalizing...</strong> This usually takes a few more minutes.
+                  </span>
+                </div>
+              )}
+
+            {/* Ranking Assignees waiting banner */}
+            {data?.assignee_ranking_status === "processing" && (
+                <div className="mb-6 flex items-center gap-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-5 py-4 text-indigo-500 text-sm">
+                  <svg
+                    className="animate-spin h-4 w-4 shrink-0 text-amber-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H4z"
                     />
                   </svg>
                   <span>
-                    <strong>Patent data enrichment is complete!</strong> KYP
-                    batch scoring is still running in the background — scores
-                    will appear automatically when finished. Please do not close
-                    this tab.
+                    <strong>AI Assignee Ranking is running...</strong> Competitors are being analyzed and ranked.
+                    This usually takes a few more minutes. Please do not close this tab.
                   </span>
                 </div>
               )}
@@ -817,6 +860,7 @@ export default function SessionDetail() {
                 return (
                   <PatentDetails
                     patents={filteredPatents}
+                    isRankingAssignees={data.assignee_ranking_status === "processing"}
                     selectedForExport={selectedForExport}
                     onToggleExport={handleToggleExport}
                     onSelectAll={() => {

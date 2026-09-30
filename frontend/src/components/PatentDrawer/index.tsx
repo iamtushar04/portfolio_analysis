@@ -176,16 +176,14 @@ function TaxonomyTree({ taxonomies }: { taxonomies: any[] }) {
 
 interface PatentDetailDrawerProps {
   patent: any | null;
+  isRankingAssignees?: boolean;
   onClose: () => void;
 }
 
-const PatentDrawer = ({ patent, onClose }: PatentDetailDrawerProps) => {
-  const fwdCompRef = useRef<HTMLDivElement>(null);
-  const bwdCompRef = useRef<HTMLDivElement>(null);
+const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawerProps) => {
   const fwdCitRef = useRef<HTMLDivElement>(null);
   const bwdCitRef = useRef<HTMLDivElement>(null);
 
-  const [compSearch, setCompSearch] = useState("");
   const [citSearch, setCitSearch] = useState("");
   const [rankBy, setRankBy] = useState<"topic" | "subtopic">("topic");
 
@@ -207,13 +205,7 @@ const PatentDrawer = ({ patent, onClose }: PatentDetailDrawerProps) => {
   const isProcessing =
     patent && (patent.status === "processing" || patent.status === "pending");
 
-  // Filtering logic
-  const filteredFwdComp = (patent?.forward_competitors || []).filter(
-    (c: string) => c.toLowerCase().includes(compSearch.toLowerCase()),
-  );
-  const filteredBwdComp = (patent?.backward_competitors || []).filter(
-    (c: string) => c.toLowerCase().includes(compSearch.toLowerCase()),
-  );
+
 
   const filteredFwdCit = (patent?.forward_citations || []).filter(
     (c: any) =>
@@ -364,118 +356,7 @@ const PatentDrawer = ({ patent, onClose }: PatentDetailDrawerProps) => {
                 </div>
               </div>
 
-              {/* Competitors Card */}
-              <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-white" />
-                <div className="pl-5 pr-4 pt-4 pb-4">
-                  <h3 className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest mb-4 flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <span className="bg-emerald-500 inline-block" />
-                      Competitors
-                    </span>
-                    <span className="flex gap-2">
-                      <button
-                        onClick={() => scrollToRef(fwdCompRef)}
-                        className="px-2 py-0.5 rounded-full bg-emerald-500 text-green-100 text-[12px] font-bold border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors cursor-pointer"
-                      >
-                        ↑ {patent.forward_competitors?.length || 0} Fwd
-                      </button>
-                      <button
-                        onClick={() => scrollToRef(bwdCompRef)}
-                        className="px-2 py-0.5 rounded-full bg-rose-500/15 text-red-500 text-[12px] font-bold border border-rose-500/20 hover:bg-rose-500/25 transition-colors cursor-pointer"
-                      >
-                        ↓ {patent.backward_competitors?.length || 0} Bwd
-                      </button>
-                    </span>
-                  </h3>
 
-                  {isProcessing ? (
-                    <div className="space-y-4 animate-pulse pt-2 px-2">
-                      <div className="flex gap-2 flex-wrap">
-                        <div className="w-16 h-6 rounded-full bg-slate-700/50"></div>
-                        <div className="w-20 h-6 rounded-full bg-slate-700/50"></div>
-                        <div className="w-14 h-6 rounded-full bg-slate-700/50"></div>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <div className="w-24 h-6 rounded-full bg-slate-700/50"></div>
-                        <div className="w-16 h-6 rounded-full bg-slate-700/50"></div>
-                      </div>
-                    </div>
-                  ) : !patent.forward_competitors?.length &&
-                    !patent.backward_competitors?.length ? (
-                    <EmptyState title="No Competitors Found" />
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2 mb-4 bg-slate-200 border border-slate-700/50 rounded-lg px-2.5 py-1.5 focus-within:border-emerald-500/50 transition-colors">
-                        <Search size={12} className="text-slate-700" />
-                        <input
-                          type="text"
-                          placeholder="Search competitors..."
-                          className="bg-transparent border-none outline-none text-xs text-slate-700 w-full placeholder:text-slate-600"
-                          value={compSearch}
-                          onChange={(e) => setCompSearch(e.target.value)}
-                        />
-                      </div>
-                      <div className="max-h-[250px] overflow-y-auto custom-scrollbar pr-1 space-y-4">
-                        <div ref={fwdCompRef} />
-                        {/* Forward */}
-                        <div>
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.6)]" />
-                            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">
-                              Forward Citation Competitors
-                            </span>
-                          </div>
-                          {filteredFwdComp.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {filteredFwdComp.map((c: string, i: number) => (
-                                <span
-                                  key={i}
-                                  className="px-2.5 py-1 rounded-full bg-emerald-600 text-xs text-white border border-emerald-500/25 font-medium hover:bg-salte-100 transition-colors"
-                                >
-                                  {c}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-600 italic">
-                              None found
-                            </span>
-                          )}
-                        </div>
-                        {/* Backward */}
-                        <div
-                          ref={bwdCompRef}
-                          className="border-t border-slate-700/40 pt-4"
-                        >
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shadow-[0_0_5px_rgba(251,113,133,0.6)]" />
-                            <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wide">
-                              Backward Citation Competitors
-                            </span>
-                          </div>
-                          {filteredBwdComp.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {filteredBwdComp.map((c: string, i: number) => (
-                                <span
-                                  key={i}
-                                  className="px-2.5 py-1 rounded-full bg-rose-500/10 text-xs text-rose-300 border border-rose-500/25 font-medium hover:bg-rose-500/20 transition-colors"
-                                >
-                                  {c}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-600 italic">
-                              None found
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
 
               {/* Relevance-Ranked Assignees Card */}
               <div className="relative rounded-xl border border-slate-700/50 overflow-hidden">
@@ -522,6 +403,13 @@ const PatentDrawer = ({ patent, onClose }: PatentDetailDrawerProps) => {
                     <div className="space-y-4 animate-pulse pt-2 px-2">
                       <div className="h-12 bg-slate-700/50 rounded-lg w-full"></div>
                       <div className="h-12 bg-slate-700/50 rounded-lg w-full"></div>
+                    </div>
+                  ) : isRankingAssignees ? (
+                    <div className="flex flex-col items-center justify-center py-6 px-4 bg-slate-800/40 rounded-lg border border-amber-500/20">
+                      <div className="w-5 h-5 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mb-2" />
+                      <span className="text-[10px] uppercase tracking-widest font-semibold text-amber-500/80 animate-pulse text-center">
+                        AI is reading and ranking<br/>competitors...
+                      </span>
                     </div>
                   ) : !patent.ranked_forward_assignees ||
                     patent.ranked_forward_assignees.length === 0 ? (

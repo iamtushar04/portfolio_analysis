@@ -14,8 +14,8 @@ from .models import schemas
 from .services.wissen import fetch_wissen_data
 from .services.taxonomy import classify_patent
 from .services.sparta import fetch_sparta_data
-from .services.competitor import fetch_competitor_data
-from .services.assignee_ranker import rank_assignees_dual_layer
+from .services.assignee_filters import apply_all_filters
+from .services.session_assignee_ranker import redis_accumulate_assignee, run_session_assignee_ranking
 from .services.kyp import fetch_classifications_batch, filter_patents_batch, trigger_scoring_batch, poll_scoring_task
 from .redis_client import redis_client
 from .config import settings
@@ -198,66 +198,49 @@ async def _process_patent_async(session_id: str, patent_number: str):
         sparta_duration = time.perf_counter() - sparta_start
         logger.info(f"[{session_id}] Patent {patent_number} - Sparta standards fetched in {sparta_duration:.2f}s")
 
-        # 5. Competitor search for Forward and Backward Citation Assignees
+        # 5. Phase 1 — Filter forward citation assignees and push to Redis accumulator
         fwd_citations = wissen_data.get("forward_citations_deduped", [])
         bwd_citations = wissen_data.get("backward_citations_deduped", [])
 
-        fwd_assignees_set = set()
-        for c in fwd_citations:
-            # Handle both 'assignees' (list) and 'assignee' (string) field formats
-            raw = c.get("assignees") or ([c.get("assignee")] if c.get("assignee") else [])
-            for a in raw:
-                cleaned_a = str(a).strip()
-                if cleaned_a and cleaned_a.lower() not in ("unknown", "nan", ""):
-                    fwd_assignees_set.add(cleaned_a)
+        # Apply jurisdiction + operating-company pre-filters (zero API cost)
+        filtered_fwd_assignees = apply_all_filters(
+            forward_citations=fwd_citations,
+            input_patent_number=patent_number,
+            enable_jurisdiction_filter=settings.ENABLE_JURISDICTION_FILTER,
+            enable_oc_filter=settings.ENABLE_OC_FILTER,
+        )
 
-        bwd_assignees_set = set()
-        for c in bwd_citations:
-            # Handle both 'assignees' (list) and 'assignee' (string) field formats
-            raw = c.get("assignees") or ([c.get("assignee")] if c.get("assignee") else [])
-            for a in raw:
-                cleaned_a = str(a).strip()
-                if cleaned_a and cleaned_a.lower() not in ("unknown", "nan", ""):
-                    bwd_assignees_set.add(cleaned_a)
+        # Extract unique taxonomy terms for this patent (both topics and subtopics
+        # are always stored in Redis — which ones get evaluated depends on
+        # ASSIGNEE_RANKING_TERM_TYPES in Phase 2)
+        patent_topics: list[str] = []
+        patent_subtopics: list[str] = []
+        for tax in (taxonomy_data or []):
+            if tax.get("topic") and tax["topic"] not in patent_topics:
+                patent_topics.append(tax["topic"])
+            if tax.get("subtopic") and tax["subtopic"] not in patent_subtopics:
+                patent_subtopics.append(tax["subtopic"])
 
-        # 5a. Rank Forward Assignees based on Topic/Subtopic FIRST
-        ranked_forward_assignees = None
-        top_fwd_assignees = list(fwd_assignees_set)
-        try:
-            topics_set = set()
-            subtopics_set = set()
-            for tax in (taxonomy_data or []):
-                if tax.get("topic"): topics_set.add(tax.get("topic"))
-                if tax.get("subtopic"): subtopics_set.add(tax.get("subtopic"))
-            
-            if (topics_set or subtopics_set) and fwd_assignees_set:
-                rank_start = time.perf_counter()
-                raw_ranked = await rank_assignees_dual_layer(list(topics_set), list(subtopics_set), list(fwd_assignees_set), db)
-                
-                # Keep if any score >= 5
-                ranked_forward_assignees = []
-                for r in raw_ranked:
-                    max_score = 0
-                    for e in r.get("topic_evals", []) + r.get("subtopic_evals", []):
-                        if e.get("score", 0) > max_score: max_score = e.get("score", 0)
-                    if max_score >= 5:
-                        ranked_forward_assignees.append(r)
-                top_fwd_assignees = [r["name"] for r in ranked_forward_assignees]
-                rank_duration = time.perf_counter() - rank_start
-                logger.info(f"[{session_id}] Patent {patent_number} - Assignees ranked in {rank_duration:.2f}s")
-        except Exception as e:
-            logger.warning(f"[{session_id}] Patent {patent_number} - Assignee ranking failed (non-critical): {e}")
+        # Push each filtered assignee into the session-level Redis accumulator
+        for assignee_name in filtered_fwd_assignees:
+            redis_accumulate_assignee(
+                session_id=session_id,
+                assignee_name=assignee_name,
+                patent_number=patent_number,
+                topics=patent_topics,
+                subtopics=patent_subtopics,
+            )
 
-        # 5b. Run Competitor API for Ranked Forward Assignees
-        comp_start = time.perf_counter()
-        fwd_comp_res = await fetch_competitor_data(patent_number, top_fwd_assignees, label="Forward")
-        comp_duration = time.perf_counter() - comp_start
-        logger.info(f"[{session_id}] Patent {patent_number} - Competitors fetched in {comp_duration:.2f}s")
-
-        fwd_competitors = fwd_comp_res.get("competitors", [])
-        bwd_competitors = []
+        logger.info(
+            f"[{session_id}] Patent {patent_number} - "
+            f"{len(filtered_fwd_assignees)} filtered assignees pushed to Redis accumulator."
+        )
 
         # 6. Save to DB
+        # Note: ranked_forward_assignees is intentionally left as None here.
+        # Phase 2 (run_session_assignee_ranking) will populate it after all
+        # patents in the session are processed and Perplexity is called once
+        # at the session level.
         if patent_record:
             patent_record.title = wissen_data.get("title")
             patent_record.assignees = assignees_list
@@ -269,9 +252,9 @@ async def _process_patent_async(session_id: str, patent_number: str):
             patent_record.standard = sparta_data.get("standard")
             patent_record.standard_links = sparta_data.get("standard_links")
             patent_record.competitors = []
-            patent_record.forward_competitors = fwd_competitors
-            patent_record.backward_competitors = bwd_competitors
-            patent_record.ranked_forward_assignees = ranked_forward_assignees
+            patent_record.forward_competitors = []
+            patent_record.backward_competitors = []
+            patent_record.ranked_forward_assignees = None  # Phase 2 fills this
             patent_record.status = "success"
             patent_record.error_message = None
             db.commit()
@@ -290,7 +273,9 @@ async def _process_patent_async(session_id: str, patent_number: str):
 
 
 def _check_session_completion(db, session_id: str):
-    """Check if all patents for a session are processed (success or failed) and mark complete."""
+    """Check if all patents for a session are processed (success or failed) and mark complete.
+    When all patents finish, triggers Phase 2 session-level assignee ranking.
+    """
     try:
         db_session = db.query(schemas.Session).filter(schemas.Session.id == session_id).first()
         if not db_session or db_session.status == "completed":
@@ -302,15 +287,55 @@ def _check_session_completion(db, session_id: str):
             schemas.PatentData.status.in_(["success", "failed"])
         ).count()
         
-        if (processed_count >= db_session.total_patents 
+        all_patents_done = (
+            processed_count >= db_session.total_patents
             and db_session.total_patents > 0
-            and db_session.kyp_status in ["completed", "error"]):
+        )
+
+        if all_patents_done and db_session.kyp_status in ["completed", "error"]:
             db_session.status = "completed"
             db.commit()
+
+        # Trigger Phase 2 as soon as all patents are done (independent of KYP)
+        # Only trigger once: guard against duplicate triggers using ranking status
+        if (
+            all_patents_done
+            and db_session.assignee_ranking_status == "pending"
+        ):
+            logger.info(
+                f"[{session_id}] All patents done. Triggering Phase 2 session assignee ranking."
+            )
+            # Dispatch as an independent Celery task so it runs in its own async context
+            run_session_assignee_ranking_task.delay(session_id)
             
     except Exception as e:
         logger.error(f"Error checking session completion for {session_id}: {e}")
         db.rollback()
+
+
+@celery_app.task(name="app.tasks.run_session_assignee_ranking_task")
+def run_session_assignee_ranking_task(session_id: str):
+    """Celery task wrapper for Phase 2 session-level assignee ranking."""
+    correlation_id_ctx.set(f"phase2-{session_id[:8]}")
+    logger.info(f"[Phase2 Task] Starting for session {session_id}")
+    db = SessionLocal()
+    try:
+        asyncio.run(run_session_assignee_ranking(session_id, db))
+    except Exception as e:
+        logger.error(f"[Phase2 Task] Failed for session {session_id}: {e}")
+        # Mark ranking as error so it doesn't stay stuck in 'pending'
+        try:
+            db.query(schemas.Session).filter(
+                schemas.Session.id == session_id
+            ).update(
+                {schemas.Session.assignee_ranking_status: "error"},
+                synchronize_session=False,
+            )
+            db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 
 def _mark_patent_failed(session_id: str, patent_number: str, error_msg: str):

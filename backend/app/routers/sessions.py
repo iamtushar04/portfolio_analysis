@@ -42,6 +42,7 @@ def list_sessions(db: DBSession = Depends(get_db), current_user_id: str = Depend
             "name": s.name, 
             "status": s.status, 
             "kyp_status": s.kyp_status,
+            "assignee_ranking_status": getattr(s, 'assignee_ranking_status', 'pending'),
             "total_patents": s.total_patents, 
             "processed_patents": processed_count, 
             "created_at": s.created_at
@@ -94,6 +95,7 @@ def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_i
         "name": db_session.name,
         "status": db_session.status,
         "kyp_status": db_session.kyp_status,
+        "assignee_ranking_status": getattr(db_session, 'assignee_ranking_status', 'pending'),
         "total_patents": db_session.total_patents,
         "processed_patents": processed_count,
         "patents": [
@@ -148,6 +150,7 @@ def get_session_status(session_id: str, db: DBSession = Depends(get_db), current
     return {
         "status": db_session.status,
         "kyp_status": db_session.kyp_status,
+        "assignee_ranking_status": getattr(db_session, 'assignee_ranking_status', 'pending'),
         "total_patents": db_session.total_patents,
         "processed_patents": processed_count
     }
@@ -278,6 +281,8 @@ async def upload_excel(
     
     # Extract JWT auth token and KYP internal user ID from the incoming request to pass to KYP APIs
     auth_token = request.headers.get("Authorization")
+    if auth_token:
+        redis_client.set(f"session_auth_token:{session_id}", auth_token, ex=86400)
     
     # DIAGNOSTIC LOGGING
     logger.info(f"[{session_id}] RECEIVED HEADERS: {dict(request.headers)}")

@@ -13,7 +13,8 @@ def decode_access_token(token: str) -> Union[str, None]:
     try:
         # Decode the token without verifying the signature because it is 
         # signed by the external microservice, not our local secret.
-        decoded_token = jwt.decode(token, "", options={"verify_signature": False})
+        # We also disable nbf (Not Before) checks to avoid Docker clock drift errors.
+        decoded_token = jwt.decode(token, "", options={"verify_signature": False, "verify_nbf": False})
         
         # Extract user identifier from the external token
         external_id = decoded_token.get("sub") or decoded_token.get("id") or decoded_token.get("user_id")
