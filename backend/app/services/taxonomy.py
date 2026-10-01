@@ -68,7 +68,7 @@ async def classify_patent(cpc_list: list, abstract: str, claims: str, patent_num
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
-            max_tokens=600,
+            max_tokens=1500,
             name=f"classify-{patent_number}" if patent_number else "patent-taxonomy-classification",
             metadata={
                 "patent_number": patent_number,

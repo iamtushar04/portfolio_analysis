@@ -188,7 +188,21 @@ async def run_session_assignee_ranking(session_id: str, db: DBSession) -> None:
         ))
 
     if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        all_new_records = []
+        for r in results:
+            if isinstance(r, Exception):
+                logger.error(f"[Phase2] Exception in term evaluation task: {r}")
+            elif isinstance(r, list):
+                all_new_records.extend(r)
+                
+        if all_new_records and settings.ENABLE_ASSIGNEE_RANKING_CACHE:
+            try:
+                db.bulk_save_objects(all_new_records)
+                db.commit()
+            except Exception as e:
+                logger.error(f"[Phase2] Exception saving new records to cache: {e}")
+                db.rollback()
 
     # 3. Build SessionAssigneeMap rows from Cache
     _build_session_assignee_maps(db, session_id, accumulator)
@@ -213,12 +227,12 @@ async def _evaluate_term_for_assignees(
     assignees: list[str],
     semaphore: asyncio.Semaphore,
     db: DBSession,
-) -> None:
+) -> list[AssigneeRelevanceCache]:
     """
     Evaluates a specific term against multiple assignees, utilizing caching and batching.
     """
     if not assignees:
-        return
+        return []
 
     # Normalize names
     norm_to_orig = {}
@@ -280,9 +294,8 @@ async def _evaluate_term_for_assignees(
                     )
                 )
 
-        if new_records and settings.ENABLE_ASSIGNEE_RANKING_CACHE:
-            db.bulk_save_objects(new_records)
-            db.commit()
+        return new_records
+    return []
 
 
 # ---------------------------------------------------------------------------
