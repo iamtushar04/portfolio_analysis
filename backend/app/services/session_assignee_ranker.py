@@ -212,7 +212,7 @@ async def run_session_assignee_ranking(session_id: str, db: DBSession) -> None:
             elif isinstance(r, list):
                 all_new_records.extend(r)
                 
-        if all_new_records and settings.ENABLE_ASSIGNEE_RANKING_CACHE:
+        if all_new_records:
             try:
                 db.bulk_save_objects(all_new_records)
                 db.commit()
@@ -261,6 +261,8 @@ async def _evaluate_term_for_assignees(
             assignees=batch,
             semaphore=semaphore,
         )
+        
+        logger.info(f"[Phase2 Debug] API returned {len(api_results)} results for batch {batch}")
 
         for item in api_results:
             name_from_api = item.get("name", "")
@@ -275,6 +277,7 @@ async def _evaluate_term_for_assignees(
                     norm_name = norm_api
 
             if not norm_name:
+                logger.warning(f"[Phase2 Debug] Dropping api result for '{name_from_api}' (norm='{norm_api if 'norm_api' in locals() else ''}') because it didn't match batch {batch}")
                 continue
 
             new_records.append(
@@ -287,6 +290,8 @@ async def _evaluate_term_for_assignees(
                     source=item.get("source", "")
                 )
             )
+            
+    logger.info(f"[Phase2 Debug] Generated {len(new_records)} new records for term '{term}'")
 
     return new_records
 
