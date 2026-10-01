@@ -111,3 +111,5 @@ async def classify_patent(cpc_list: list, abstract: str, claims: str, patent_num
         print(f"Error classifying patent {patent_number}: {e}")
         # Raising the exception ensures the backoff decorator catches it and retries!
         raise e
+    finally:
+        await client.close()
