@@ -176,16 +176,32 @@ async def run_session_assignee_ranking(session_id: str, db: DBSession) -> None:
 
     semaphore = asyncio.Semaphore(2)  # Limit concurrent Perplexity requests
 
-    # 2. Evaluate all terms concurrently
+    # 2. Pre-fetch missing assignees sequentially from DB, then gather API calls
     tasks = []
     for (term_type, term), assignees in term_to_assignees.items():
-        tasks.append(_evaluate_term_for_assignees(
-            term_type=term_type,
-            term=term,
-            assignees=list(assignees),
-            semaphore=semaphore,
-            db=db,
-        ))
+        if not assignees:
+            continue
+            
+        normalized_assignees = list({normalize_assignee_name(a) for a in assignees})
+        
+        cached_records = []
+        if settings.ENABLE_ASSIGNEE_RANKING_CACHE:
+            cached_records = db.query(AssigneeRelevanceCache).filter(
+                AssigneeRelevanceCache.technology_term == term,
+                AssigneeRelevanceCache.term_type == term_type,
+                AssigneeRelevanceCache.assignee_name.in_(normalized_assignees)
+            ).all()
+
+        cached_names = {r.assignee_name for r in cached_records}
+        missing_normalized = [n for n in normalized_assignees if n not in cached_names]
+        
+        if missing_normalized:
+            tasks.append(_evaluate_term_for_assignees(
+                term_type=term_type,
+                term=term,
+                missing_normalized=missing_normalized,
+                semaphore=semaphore,
+            ))
 
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -224,79 +240,55 @@ async def run_session_assignee_ranking(session_id: str, db: DBSession) -> None:
 async def _evaluate_term_for_assignees(
     term_type: str,
     term: str,
-    assignees: list[str],
+    missing_normalized: list[str],
     semaphore: asyncio.Semaphore,
-    db: DBSession,
 ) -> list[AssigneeRelevanceCache]:
     """
-    Evaluates a specific term against multiple assignees, utilizing caching and batching.
+    Evaluates a specific term against multiple missing assignees.
     """
-    if not assignees:
+    if not missing_normalized:
         return []
 
-    # Normalize names
-    norm_to_orig = {}
-    for a in assignees:
-        norm = normalize_assignee_name(a)
-        norm_to_orig.setdefault(norm, []).append(a)
+    logger.info(f"[Phase2] Perplexity call: Term '{term}' ({term_type}) for {len(missing_normalized)} missing assignees.")
+    
+    BATCH_SIZE = 5
+    new_records = []
 
-    normalized_assignees = list(norm_to_orig.keys())
+    for i in range(0, len(missing_normalized), BATCH_SIZE):
+        batch = missing_normalized[i:i + BATCH_SIZE]
+        api_results = await _fetch_perplexity_evaluation(
+            term=term,
+            assignees=batch,
+            semaphore=semaphore,
+        )
 
-    # Check cache
-    cached_records = []
-    if settings.ENABLE_ASSIGNEE_RANKING_CACHE:
-        cached_records = db.query(AssigneeRelevanceCache).filter(
-            AssigneeRelevanceCache.technology_term == term,
-            AssigneeRelevanceCache.term_type == term_type,
-            AssigneeRelevanceCache.assignee_name.in_(normalized_assignees)
-        ).all()
+        for item in api_results:
+            name_from_api = item.get("name", "")
+            
+            # Match back to our batch
+            norm_name = None
+            if name_from_api in batch:
+                norm_name = name_from_api
+            else:
+                norm_api = normalize_assignee_name(name_from_api)
+                if norm_api in batch:
+                    norm_name = norm_api
 
-    cached_names = {r.assignee_name for r in cached_records}
-    missing_normalized = [n for n in normalized_assignees if n not in cached_names]
+            if not norm_name:
+                continue
 
-    if missing_normalized:
-        logger.info(f"[Phase2] Perplexity call: Term '{term}' ({term_type}) for {len(missing_normalized)} missing assignees.")
-        
-        BATCH_SIZE = 5
-        new_records = []
-
-        for i in range(0, len(missing_normalized), BATCH_SIZE):
-            batch = missing_normalized[i:i + BATCH_SIZE]
-            api_results = await _fetch_perplexity_evaluation(
-                term=term,
-                assignees=batch,
-                semaphore=semaphore,
+            new_records.append(
+                AssigneeRelevanceCache(
+                    assignee_name=norm_name,
+                    technology_term=term,
+                    term_type=term_type,
+                    relevance_score=item.get("relevance_score", 0),
+                    reason=item.get("reason", ""),
+                    source=item.get("source", "")
+                )
             )
 
-            for item in api_results:
-                name_from_api = item.get("name", "")
-                
-                # Match back to our batch
-                norm_name = None
-                if name_from_api in batch:
-                    norm_name = name_from_api
-                else:
-                    norm_api = normalize_assignee_name(name_from_api)
-                    if norm_api in batch:
-                        norm_name = norm_api
-
-                if not norm_name:
-                    continue
-
-                new_records.append(
-                    AssigneeRelevanceCache(
-                        assignee_name=norm_name,
-                        technology_term=term,
-                        term_type=term_type,
-                        relevance_score=item.get("relevance_score", 0),
-                        reason=item.get("reason", ""),
-                        source=item.get("source", "")
-                    )
-                )
-
-        return new_records
-    return []
-
+    return new_records
 
 # ---------------------------------------------------------------------------
 # Session map construction
