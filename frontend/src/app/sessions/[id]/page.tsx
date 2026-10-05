@@ -509,33 +509,35 @@ export default function SessionDetail() {
     <main className="w-full bg-white px-4 md:px-8 pb-4">
       {/* ============ Header ============ */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
-  <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3">
+  {/* Reduced left/right padding */}
+  <div className="container mx-auto px-2 sm:px-3 lg:px-4 py-2.5 sm:py-3">
 
-    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3">
+    {/* Two lines below lg (mobile + tablet), one line from lg up */}
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3 lg:gap-4">
 
-      {/* ================= LEFT SECTION ================= */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+      {/* ================= LEFT SECTION (line 1 on tablet) ================= */}
+      <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 min-w-0 lg:flex-1">
 
         {/* Back Button */}
         <button
           onClick={() => router.push("/")}
           className="
-            flex items-center gap-1.5 sm:gap-2
+            flex items-center gap-1.5
             bg-[#b90000] hover:bg-red-700 active:bg-red-800
-            text-white px-2.5 sm:px-3 py-2
+            text-white px-2.5 py-1.5 sm:py-2
             rounded-lg cursor-pointer text-sm font-medium transition
             shrink-0
           "
         >
           <ArrowLeft size={16} />
-          <span className="hidden md:inline">Back</span>
+          <span className="hidden xl:inline">Back</span>
         </button>
 
-        {/* Session Name */}
+        {/* Session Name — hugs its content (no stretching), truncates when capped */}
         <div
           className="
             min-w-0
-            max-w-[110px] sm:max-w-[200px] lg:max-w-[200px] xl:max-w-[300px]
+            max-w-[140px] sm:max-w-[200px] lg:max-w-none xl:max-w-[320px]
             truncate
             text-base sm:text-lg
             font-semibold text-slate-700
@@ -548,80 +550,84 @@ export default function SessionDetail() {
         {/* Processing / Background Indicators */}
         {(data.status === "processing" ||
           data.assignee_ranking_status === "processing") && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0">
             {data.status === "processing" && (
               <div className="
                 flex items-center gap-1.5
-                px-2 sm:px-3 py-1.5 rounded-full
+                px-2 py-1.5 rounded-full
                 bg-amber-50 border border-amber-200
-                text-amber-600 text-xs sm:text-sm font-medium
-                animate-pulse shadow-sm whitespace-nowrap
+                text-amber-600 text-xs font-medium
+                animate-pulse shadow-sm whitespace-nowrap shrink-0
               ">
                 <RefreshCw size={14} className="animate-spin shrink-0" />
-                <span className="sm:hidden">Processing</span>
-                <span className="hidden sm:inline">KYP Analysis Processing</span>
+                <span className="xl:hidden">Processing</span>
+                <span className="hidden xl:inline">KYP Analysis Processing</span>
               </div>
             )}
 
             {data.assignee_ranking_status === "processing" && (
               <div className="
                 flex items-center gap-1.5
-                px-2 sm:px-3 py-1.5 rounded-full
+                px-2 py-1.5 rounded-full
                 bg-indigo-50 border border-indigo-200
-                text-indigo-600 text-xs sm:text-sm font-medium
-                animate-pulse shadow-sm whitespace-nowrap
+                text-indigo-600 text-xs font-medium
+                animate-pulse shadow-sm whitespace-nowrap shrink-0
               ">
                 <RefreshCw size={14} className="animate-spin shrink-0" />
-                <span className="sm:hidden">Ranking</span>
-                <span className="hidden sm:inline">Ranking Assignees</span>
+                <span className="xl:hidden">Ranking</span>
+                <span className="hidden xl:inline">Ranking Assignees</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Session Status */}
-        <div className="
-          flex items-center gap-1.5 sm:gap-2
-          px-2.5 sm:px-3 py-1.5 rounded-full
-          bg-slate-50 border border-slate-200
-          text-xs sm:text-sm whitespace-nowrap
-        ">
-          <span className="text-slate-500 hidden sm:inline">Status:</span>
-          <span className={`font-semibold capitalize ${
-            data.status === "completed"
-              ? "text-emerald-600"
-              : data.status === "processing"
-              ? "text-amber-500"
-              : "text-red-500"
-          }`}>
-            {data.status}
-          </span>
-        </div>
+        {/* Session Status — hidden while processing (spinner already shows it) */}
+        {data.status !== "processing" && (
+          <div className="
+            flex items-center gap-1.5
+            px-2 sm:px-2.5 py-1.5 rounded-full
+            bg-slate-50 border border-slate-200
+            text-xs sm:text-sm whitespace-nowrap shrink-0
+          ">
+            <span className="text-slate-500 hidden xl:inline">Status:</span>
+            <span className={`font-semibold capitalize ${
+              data.status === "completed"
+                ? "text-emerald-600"
+                : data.status === "processing"
+                ? "text-amber-500"
+                : "text-red-500"
+            }`}>
+              {data.status}
+            </span>
+          </div>
+        )}
 
         {/* Patent Count */}
         <div className="
-          flex items-center gap-1.5 sm:gap-2
-          px-2.5 sm:px-3 py-1.5 rounded-full
+          flex items-center gap-1.5
+          px-2 sm:px-2.5 py-1.5 rounded-full
           bg-slate-50 border border-slate-200
-          text-xs sm:text-sm whitespace-nowrap
+          text-xs sm:text-sm whitespace-nowrap shrink-0
         ">
-          <span className="text-slate-500 hidden sm:inline">Patents:</span>
+          <span className="text-slate-500 xl:inline">Patents:</span>
           <span className="font-semibold text-slate-700">
             {data.total_patents}
           </span>
         </div>
       </div>
 
-      {/* ================= RIGHT SECTION ================= */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
+      {/* ================= RIGHT SECTION (line 2 on tablet) ================= */}
+      <div className="flex flex-wrap lg:flex-nowrap lg:justify-end items-center gap-2 w-full lg:w-auto lg:shrink-0">
 
-        {/* Search */}
+        {/* Search — fills line 2 on tablet, fixed width from lg up */}
         {(data.status === "completed" || data.status === "processing") && (
           <div className="
             flex items-center gap-2
             bg-slate-100 border border-slate-200 rounded-xl
             px-3 py-2
-            flex-1 min-w-[150px] sm:min-w-[220px] xl:w-[260px] xl:flex-none
+            flex-1 min-w-[150px]
+            lg:min-w-0 lg:flex-none
+            lg:w-[200px] xl:w-[240px] 2xl:w-[280px]
             focus-within:ring-2 focus-within:ring-red-100
           ">
             <Search size={16} className="text-slate-500 shrink-0" />
@@ -658,7 +664,7 @@ export default function SessionDetail() {
                 bg-emerald-600 hover:bg-emerald-700
                 text-white px-4 py-2 rounded-xl
                 text-sm font-medium cursor-pointer transition
-                disabled:opacity-50 whitespace-nowrap
+                disabled:opacity-50 whitespace-nowrap shrink-0
               "
             >
               <UploadCloud size={17} className="shrink-0" />
@@ -675,12 +681,12 @@ export default function SessionDetail() {
         {(data.status === "completed" || data.status === "processing") && (
           <button
             className="
-              flex float-right gap-2
+              flex items-center gap-2
               bg-[#b90000] hover:bg-red-700 active:bg-red-800
               cursor-pointer text-white
-              px-4 sm:px-5 py-2 rounded-xl
+              px-3 xl:px-4 py-2 rounded-xl
               text-sm font-medium transition
-              shadow-md shadow-red-200 whitespace-nowrap
+              shadow-md shadow-red-200 whitespace-nowrap shrink-0
             "
             onClick={() => {
               if (selectedForExport.size === 0) {
@@ -695,8 +701,8 @@ export default function SessionDetail() {
             }}
           >
             <ShieldAlert size={17} className="shrink-0" />
-            <span className="hidden sm:inline">Infringement Analysis</span>
-            <span className="sm:hidden">Analysis</span>
+
+            <span className="xl:inline">Infringement Analysis</span>
           </button>
         )}
       </div>
