@@ -3,7 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { X, Download } from "lucide-react";
-import { ExcelExport } from "@/services/ExcelExport";
+import { ExcelExport } from "@/services/Index";
 
 interface ExcelPreviewProps {
   sessionId: string;

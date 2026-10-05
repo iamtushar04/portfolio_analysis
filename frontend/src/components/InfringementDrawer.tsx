@@ -508,7 +508,7 @@ export default function InfringementDrawer({ isOpen, onClose, patentNumber, resu
                                 <button
                                     onClick={() => handleGenerateForProducts(Array.from(selectedProducts))}
                                     disabled={selectedProducts.size === 0}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-slate-200 hover:bg-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-500/20"
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-slate-200 hover:bg-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-500/20 cursor-pointer"
                                 >
                                     <FileBarChart size={16} />
                                     Generate Selected ({selectedProducts.size})

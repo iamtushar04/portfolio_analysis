@@ -16,10 +16,9 @@ import PatentDetails from "@/components/patentdetails";
 import { config } from "@/config";
 import { BarLoader, ClipLoader } from "react-spinners";
 import { useQuery } from "@tanstack/react-query";
-import { GetSessionById } from "@/services/GetSessionById";
 import ExcelPreview from "@/components/ExcelPreview";
 import InfringementDrawer from "@/components/InfringementDrawer";
-
+import { GetSessionById } from "@/services/Index";
 const API_BASE = config.API_URL;
 
 export default function SessionDetail() {
@@ -510,202 +509,139 @@ export default function SessionDetail() {
     <main className="w-full bg-white px-4 md:px-8 pb-4">
       {/* ============ Header ============ */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
-  <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3">
+  <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3">
 
-    <div className="
-      flex flex-col xl:flex-row
-      xl:items-center
-      justify-between
-      gap-4
-    ">
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3">
 
-      {/* LEFT SECTION */}
-      <div className="
-        flex flex-wrap
-        items-center
-        gap-3
-        min-w-0
-      ">
+      {/* ================= LEFT SECTION ================= */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
 
         {/* Back Button */}
         <button
           onClick={() => router.push("/")}
           className="
-            flex items-center gap-2
-            bg-[#b90000]
-            hover:bg-red-700
-            active:bg-red-800
-            text-white
-            px-3 py-2
-            rounded-lg
-            cursor-pointer
-            text-sm
-            font-medium
-            transition
+            flex items-center gap-1.5 sm:gap-2
+            bg-[#b90000] hover:bg-red-700 active:bg-red-800
+            text-white px-2.5 sm:px-3 py-2
+            rounded-lg cursor-pointer text-sm font-medium transition
             shrink-0
           "
         >
-          <ArrowLeft size={16}/>
-          <span className="hidden sm:inline">
-            Back
-          </span>
+          <ArrowLeft size={16} />
+          <span className="hidden md:inline">Back</span>
         </button>
-
 
         {/* Session Name */}
         <div
           className="
-            max-w-[220px]
-            sm:max-w-[320px]
+            min-w-0
+            max-w-[110px] sm:max-w-[200px] lg:max-w-[200px] xl:max-w-[300px]
             truncate
-            text-lg
-            font-semibold
-            text-slate-700
+            text-base sm:text-lg
+            font-semibold text-slate-700
           "
           title={data.name}
         >
           {data.name}
         </div>
 
+        {/* Processing / Background Indicators */}
+        {(data.status === "processing" ||
+          data.assignee_ranking_status === "processing") && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {data.status === "processing" && (
+              <div className="
+                flex items-center gap-1.5
+                px-2 sm:px-3 py-1.5 rounded-full
+                bg-amber-50 border border-amber-200
+                text-amber-600 text-xs sm:text-sm font-medium
+                animate-pulse shadow-sm whitespace-nowrap
+              ">
+                <RefreshCw size={14} className="animate-spin shrink-0" />
+                <span className="sm:hidden">Processing</span>
+                <span className="hidden sm:inline">KYP Analysis Processing</span>
+              </div>
+            )}
 
-        {/* Processing/Background Indicators */}
-        <div className="flex items-center gap-3">
-          {data.status === "processing" && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-sm font-medium animate-pulse shadow-sm">
-              <RefreshCw size={14} className="animate-spin" />
-              KYP Analysis Processing
-            </div>
-          )}
+            {data.assignee_ranking_status === "processing" && (
+              <div className="
+                flex items-center gap-1.5
+                px-2 sm:px-3 py-1.5 rounded-full
+                bg-indigo-50 border border-indigo-200
+                text-indigo-600 text-xs sm:text-sm font-medium
+                animate-pulse shadow-sm whitespace-nowrap
+              ">
+                <RefreshCw size={14} className="animate-spin shrink-0" />
+                <span className="sm:hidden">Ranking</span>
+                <span className="hidden sm:inline">Ranking Assignees</span>
+              </div>
+            )}
+          </div>
+        )}
 
-          {data.assignee_ranking_status === "processing" && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 text-sm font-medium animate-pulse shadow-sm">
-              <RefreshCw size={14} className="animate-spin" />
-              Ranking Assignees
-            </div>
-          )}
-        </div>
-
-        {/* Status */}
-        <div
-          className="
-            flex items-center gap-2
-            px-3 py-1.5
-            rounded-full
-            bg-slate-50
-            border border-slate-200
-            text-sm
-            whitespace-nowrap
-          "
-        >
-          <span className="text-slate-500">
-            Session Status
-          </span>
-
-          <span
-            className={`
-              font-semibold capitalize
-              ${
-                data.status === "completed"
-                ? "text-emerald-600"
-                :
-                data.status === "processing"
-                ? "text-amber-500"
-                :
-                "text-red-500"
-              }
-            `}
-          >
+        {/* Session Status */}
+        <div className="
+          flex items-center gap-1.5 sm:gap-2
+          px-2.5 sm:px-3 py-1.5 rounded-full
+          bg-slate-50 border border-slate-200
+          text-xs sm:text-sm whitespace-nowrap
+        ">
+          <span className="text-slate-500 hidden sm:inline">Status:</span>
+          <span className={`font-semibold capitalize ${
+            data.status === "completed"
+              ? "text-emerald-600"
+              : data.status === "processing"
+              ? "text-amber-500"
+              : "text-red-500"
+          }`}>
             {data.status}
           </span>
         </div>
 
-
         {/* Patent Count */}
-        <div
-          className="
-            flex items-center gap-2
-            px-3 py-1.5
-            rounded-full
-            bg-slate-50
-            border border-slate-200
-            text-sm
-            whitespace-nowrap
-          "
-        >
-          <span className="text-slate-500">
-            Patents
-          </span>
-
+        <div className="
+          flex items-center gap-1.5 sm:gap-2
+          px-2.5 sm:px-3 py-1.5 rounded-full
+          bg-slate-50 border border-slate-200
+          text-xs sm:text-sm whitespace-nowrap
+        ">
+          <span className="text-slate-500 hidden sm:inline">Patents:</span>
           <span className="font-semibold text-slate-700">
             {data.total_patents}
           </span>
         </div>
-
       </div>
 
-
-
-      {/* RIGHT SECTION */}
-      <div
-        className="
-          flex flex-wrap
-          items-center
-          gap-3
-          w-full
-          xl:w-auto
-        "
-      >
-
+      {/* ================= RIGHT SECTION ================= */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
 
         {/* Search */}
-        {(data.status === "completed" ||
-          data.status === "processing") && (
-
-          <div
-            className="
-              flex items-center gap-2
-              bg-slate-100
-              border border-slate-200
-              rounded-xl
-              px-3 py-2
-              flex-1
-              min-w-[220px]
-              max-w-full
-              xl:w-[260px]
-              focus-within:ring-2
-              focus-within:ring-red-100
-            "
-          >
-
-            <Search
-              size={16}
-              className="text-slate-500 shrink-0"
-            />
-
+        {(data.status === "completed" || data.status === "processing") && (
+          <div className="
+            flex items-center gap-2
+            bg-slate-100 border border-slate-200 rounded-xl
+            px-3 py-2
+            flex-1 min-w-[150px] sm:min-w-[220px] xl:w-[260px] xl:flex-none
+            focus-within:ring-2 focus-within:ring-red-100
+          ">
+            <Search size={16} className="text-slate-500 shrink-0" />
             <input
               type="text"
               placeholder="Search patents..."
               className="
-                bg-transparent
-                outline-none
-                text-sm
-                text-slate-700
-                w-full
+                bg-transparent outline-none
+                text-base sm:text-sm
+                text-slate-700 w-full min-w-0
                 placeholder:text-slate-400
               "
               value={globalSearch}
-              onChange={(e)=>setGlobalSearch(e.target.value)}
+              onChange={(e) => setGlobalSearch(e.target.value)}
             />
-
           </div>
-
         )}
-
-
 
         {/* Upload */}
         {data.status === "pending" && (
-
           <>
             <input
               type="file"
@@ -714,109 +650,57 @@ export default function SessionDetail() {
               accept=".xlsx,.xls"
               className="hidden"
             />
-
             <button
-              onClick={()=>fileInputRef.current?.click()}
+              onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               className="
-                flex items-center gap-2
-                bg-emerald-600
-                hover:bg-emerald-700
-                text-white
-                px-4 py-2
-                rounded-xl
-                text-sm
-                cursor-pointer
-                font-medium
-                transition
-                disabled:opacity-50
+                flex items-center justify-center gap-2 flex-1 sm:flex-none
+                bg-emerald-600 hover:bg-emerald-700
+                text-white px-4 py-2 rounded-xl
+                text-sm font-medium cursor-pointer transition
+                disabled:opacity-50 whitespace-nowrap
               "
             >
-
-              <UploadCloud size={17}/>
-
-              <span>
-                {uploading
-                  ? "Uploading..."
-                  : "Upload"
-                }
-              </span>
-
+              <UploadCloud size={17} className="shrink-0" />
+              <span>{uploading ? "Uploading..." : "Upload"}</span>
             </button>
           </>
-
         )}
-
 
         {data.patents.length > 0 && (
-        <ExcelPreview sessionId={sessionId}/>
+          <ExcelPreview sessionId={sessionId} />
         )}
-
-
 
         {/* Infringement Button */}
-        {(data.status === "completed" ||
-          data.status === "processing") && (
-
+        {(data.status === "completed" || data.status === "processing") && (
           <button
             className="
-              flex items-center justify-center gap-2
-              bg-[#b90000]
-              hover:bg-red-700
-              active:bg-red-800
-              cursor-pointer
-              text-white
-              px-4
-              sm:px-5
-              py-2
-              rounded-xl
-              text-sm
-              font-medium
-              transition
-              shadow-md
-              shadow-red-200
-              whitespace-nowrap
+              flex float-right gap-2
+              bg-[#b90000] hover:bg-red-700 active:bg-red-800
+              cursor-pointer text-white
+              px-4 sm:px-5 py-2 rounded-xl
+              text-sm font-medium transition
+              shadow-md shadow-red-200 whitespace-nowrap
             "
-            onClick={()=>{
-              if(selectedForExport.size===0){
-                toast.error(
-                  "Please select a patent first."
-                );
+            onClick={() => {
+              if (selectedForExport.size === 0) {
+                toast.error("Please select a patent first.");
                 return;
               }
-
-              if(selectedForExport.size>1){
-                toast.error(
-                  "Please select only one patent for Infringement Analysis."
-                );
+              if (selectedForExport.size > 1) {
+                toast.error("Please select only one patent for Infringement Analysis.");
                 return;
               }
-
-              const patentId =
-                Array.from(selectedForExport)[0];
-
-              openInfringementModal(patentId);
+              openInfringementModal(Array.from(selectedForExport)[0]);
             }}
           >
-
-            <ShieldAlert size={17}/>
-
-            <span className="hidden sm:inline">
-              Infringement Analysis
-            </span>
-
-            <span className="sm:hidden">
-              Analysis
-            </span>
-
+            <ShieldAlert size={17} className="shrink-0" />
+            <span className="hidden sm:inline">Infringement Analysis</span>
+            <span className="sm:hidden">Analysis</span>
           </button>
-
         )}
-
       </div>
-
     </div>
-
   </div>
 </header>
 

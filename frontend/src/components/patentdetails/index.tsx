@@ -143,7 +143,7 @@ function PatentRow({
             checked={isChecked}
             onChange={() => onToggleCheck(p.patent_number)}
             disabled={!canSelect}
-            className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500"
+            className="cursor-pointer w-4 h-4 rounded border-slate-600 bg-slate-800 accent-blue-500"
           />
         </div>
         {/* Patent Number */}
@@ -519,18 +519,24 @@ const PatentDetails = ({
   }, [selectedPatent, patents]);
 
   if (!patents || patents.length === 0) {
-    return (
-      <div className="w-full bg-slate-100 rounded-lg overflow-hidden flex flex-col items-center justify-center h-[calc(100vh-200px)]">
-        <Ghost size={48} className="text-slate-700 mb-4 opacity-50" />
-        <h3 className="text-lg font-bold text-slate-500">
-          No patents match your search
-        </h3>
-        <p className="text-sm text-slate-500 mt-2">
-          Try adjusting your search terms.
-        </p>
-      </div>
-    );
-  }
+  return (
+    <div className="
+      w-full
+      bg-slate-100 rounded-lg
+      flex flex-col items-center justify-center
+      text-center px-4 py-16
+      min-h-[300px]
+    ">
+      <Ghost size={48} className="text-slate-900 mb-4 opacity-90" />
+      <h3 className="text-lg font-bold text-slate-900 opacity-90">
+        No patents match your search
+      </h3>
+      <p className="text-sm text-slate-500 mt-2 opacity-80">
+        Try adjusting your search terms.
+      </p>
+    </div>
+  );
+}
 
   return (
     <>

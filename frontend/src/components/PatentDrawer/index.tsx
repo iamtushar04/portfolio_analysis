@@ -272,7 +272,7 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
               </div>
               <button
                 onClick={onClose}
-                className="shrink-0 text-slate-500 hover:text-white hover:bg-slate-200/50 p-1.5 rounded-lg transition-all"
+                className="shrink-0 text-slate-500 hover:text-slate-600 cursor-pointer hover:bg-slate-200/50 p-1.5 rounded-lg transition-all"
               >
                 <X size={18} />
               </button>
@@ -363,12 +363,12 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-500 to-orange-600" />
                 <div className="pl-5 pr-4 pt-4 pb-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[11px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
-                      <span className="w-4 h-px bg-amber-500/60 inline-block" />
+                    <h3 className="text-[11px] font-bold text-amber-700 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-4 h-px bg-amber-300 inline-block" />
                       Relevance-Ranked Assignees
                     </h3>
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-semibold text-amber-500/70">
+                      <span className="text-[10px] font-semibold text-amber-700">
                         Top {patent.ranked_forward_assignees?.length || 0}
                       </span>
                     </div>
@@ -436,7 +436,7 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
                                 </span>
                                 <div className="flex gap-2 items-center">
                                   <span
-                                    className={`text-sm font-bold px-2 py-0.5 rounded ${activeScore >= 5 ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-slate-700/50 text-slate-400"}`}
+                                    className={`text-sm font-bold px-2 py-0.5 rounded ${activeScore >= 5 ? "bg-amber-500 text-amber-100 border border-amber-500/30" : "bg-slate-700/50 text-slate-400"}`}
                                     title="Score"
                                   >
                                     {activeScore.toFixed(1)}
@@ -451,15 +451,15 @@ const PatentDrawer = ({ patent, isRankingAssignees, onClose }: PatentDetailDrawe
                                       <div className="text-[10px] font-semibold text-slate-700 uppercase flex items-center flex-wrap gap-x-1">
                                         Topic Evidence{" "}
                                         {evalObj.term && (
-                                          <span className="text-indigo-400 normal-case">
+                                          <span className="text-indigo-600 normal-case">
                                             - {evalObj.term}
                                           </span>
                                         )}
-                                        <span className="font-bold text-amber-500 normal-case">
+                                        <span className="font-bold text-amber-700 normal-case">
                                           ({evalObj.score}/10)
                                         </span>
                                       </div>
-                                      <p className="text-xs text-slate-500 italic mt-0.5">
+                                      <p className="text-xs text-slate-600 italic mt-0.5">
                                         {evalObj.reason}
                                       </p>
                                       {evalObj.source && (

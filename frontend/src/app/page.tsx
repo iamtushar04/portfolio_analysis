@@ -3,12 +3,12 @@ import React, { useState, useEffect } from "react";
 import { Plus, FolderOpen, LogOut, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { GetSessions } from "@/services/GetSessions";
+import { GetSessions } from "@/services/Index";
 import SessionCard from "@/components/ui/SessionCard";
 import { ClipLoader } from "react-spinners";
 import { useQuery } from "@tanstack/react-query";
-import { CreateSession } from "@/services/CreateSession";
-import { DeleteSession } from "@/services/DeleteSession";
+import { DeleteSession } from "@/services/Index";
+import { CreateSession } from "@/services/Index";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 const Home = () => {
   const [sessionToDelete, setSessionToDelete] = useState<{
@@ -82,132 +82,112 @@ const Home = () => {
 
   {/* Fixed Header */}
   <header
-    className="
-      sticky top-0
-      z-[100]
-      bg-white
-      border-b
-      border-slate-200
-      shadow-sm
-      px-6
-      py-4
-      flex
-      flex-col
-      md:flex-row
-      justify-between
-      md:items-end
-      gap-6
-    "
-  >
-          <div className="absolute top-8 right-7 z-50">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="
-      flex
-      items-center
-      justify-center
-      
-      w-10
-      h-10
-      
-      rounded-xl
-      
-      text-slate-100
-      
-      bg-[#b90000]
-      
-      border
-      border-slate-300
-      
-      shadow-sm
-      
-      hover:bg-red-700
-      active:bg-red-800
-      hover:shadow-md
-      
-      cursor-pointer
-      
-      transition
-    "
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
+  className="
+    sticky top-0 z-[100]
+    bg-white border-b border-slate-200 shadow-sm
+    px-4 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5
+    flex flex-col gap-3 sm:gap-4
+  "
+>
+  {/* ================= TOP ROW — Logo + Brand + Logout ================= */}
+  <div className="flex items-center justify-between gap-3">
 
-          <div>
-            <div className="flex gap-3 mb-3">
-              <div
-                className="
-          w-12 h-12
-          rounded-2xl
+    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+
+      {/* Logo */}
+      <div
+        className="
+          w-10 h-10 sm:w-12 sm:h-12 shrink-0
+          rounded-xl sm:rounded-2xl
           bg-[#b90000]
           flex items-center justify-center
           shadow-sm shadow-slate-500
-          "
-              >
-                <FolderOpen size={25} color="white" />
-              </div>
+        "
+      >
+        <FolderOpen size={22} className="text-white sm:hidden" />
+        <FolderOpen size={25} className="hidden sm:block text-white" />
+      </div>
 
-              <span
-                className="
-          px-3 py-1
+      {/* Brand Badge */}
+      <span
+        className="
+          px-2.5 sm:px-3 py-1
           rounded-full
-          text-xs
-          flex-col place-content-center
-          bg-[#b90000]
-          text-gray-100
+          text-[10px] sm:text-xs
+          bg-[#b90000] text-gray-100
           font-semibold
           border border-indigo-500/20
-          "
-              >
-                IP Intelligence Platform
-              </span>
-            </div>
-
-            <h1
-              className="
-        text-2xl
-        font-semibold
-        bg-gradient-to-r
-        from-gray-600
-        to-gray-600
-        text-transparent
-        bg-clip-text
+          whitespace-nowrap
         "
-            >
-              Patent Portfolio Analysis
-            </h1>
+      >
+        IP Intelligence Platform
+      </span>
+    </div>
 
-            <p className="mt-3 text-slate-600 w-full">
-              Manage, monitor and analyze your patent collections through
-              intelligent portfolio insights.
-            </p>
-          </div>
+    {/* Logout — moved INTO the flow (no more absolute positioning) */}
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="
+        flex items-center justify-center
+        w-9 h-9 sm:w-10 sm:h-10 shrink-0
+        rounded-xl
+        text-slate-100
+        bg-[#b90000]
+        border border-slate-300
+        shadow-sm
+        hover:bg-red-700 active:bg-red-800 hover:shadow-md
+        cursor-pointer transition
+      "
+    >
+      <LogOut size={18} />
+    </button>
+  </div>
 
-          <button
-            onClick={() => {
-              setIsCreateModalOpen(true);
-            }}
-            className="
+  {/* ================= BOTTOM — Title + Description + CTA ================= */}
+  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-6">
+
+    <div className="min-w-0">
+      <h1
+        className="
+          text-xl sm:text-2xl
+          font-semibold
+          bg-gradient-to-r from-gray-600 to-gray-600
+          text-transparent bg-clip-text
+        "
+      >
+        Patent Portfolio Analysis
+      </h1>
+
+      {/* Hidden on phones — keeps the sticky header compact */}
+      <p className="hidden sm:block mt-1.5 sm:mt-3 text-sm sm:text-base text-slate-600 max-w-2xl">
+        Manage, monitor and analyze your patent collections through
+        intelligent portfolio insights.
+      </p>
+    </div>
+
+    {/* New Session */}
+    <button
+      onClick={() => setIsCreateModalOpen(true)}
+      className="
         flex items-center justify-center gap-2
-        px-3 py-2
+        w-full sm:w-auto shrink-0
+        px-4 py-2.5
         rounded-xl
         text-slate-100
         bg-[#b90000]
         border border-slate-200
-        hover:bg-red-700
-        active:bg-red-800
-        shadow-sm
-        hover:shadow-md
-        transition
-        font-semibold
-        cursor-pointer"
-          >
-            <Plus size={20} />
-            New Session
-          </button>
-        </header>
+        hover:bg-red-700 active:bg-red-800
+        shadow-sm hover:shadow-md
+        transition font-semibold cursor-pointer
+        whitespace-nowrap
+      "
+    >
+      <Plus size={20} />
+      New Session
+    </button>
+  </div>
+</header>
 
         <main className="min-h-screen bg-slate-100 text-slate-100 px-6 py-10 relative">
 
