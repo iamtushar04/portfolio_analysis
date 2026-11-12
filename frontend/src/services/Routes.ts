@@ -17,6 +17,14 @@ const Routes = {
 
     Create_Session: {
         route: (name: string) => `/api/sessions/?name=${encodeURIComponent(name)}`
+    },
+
+    Ingest_Patents: {
+        route: (id: string) => `/api/sessions/${id}/patents`
+    },
+
+    Retry_Patents: {
+        route: (id: string) => `/api/sessions/${id}/retry`
     }  
 
 }

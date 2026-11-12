@@ -1,26 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Request
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session as DBSession
-from typing import List, Optional
-from pydantic import BaseModel
+from typing import List
 import uuid
-import pandas as pd
-import io
-import time
-from datetime import datetime
 
 from ..database import get_db
 from ..models import schemas
-from ..logging_config import logger
-from ..services.excel_export import generate_session_excel
-from ..tasks import process_patent_task
 from ..redis_client import redis_client
+from ..logging_config import logger
 from ..auth.dependencies import get_current_user_id
+from ..services.session_lifecycle import check_and_update_session_completion
 
-router = APIRouter()
+router = APIRouter(tags=["sessions"])
 
 @router.post("/", response_model=dict)
-def create_session(name: str = "New Session", db: DBSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+def create_session(
+    name: str = "New Session",
+    db: DBSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     session_id = str(uuid.uuid4())
     db_session = schemas.Session(id=session_id, name=name, status="pending", owner_id=current_user_id)
     db.add(db_session)
@@ -29,10 +26,16 @@ def create_session(name: str = "New Session", db: DBSession = Depends(get_db), c
     return {"id": db_session.id, "name": db_session.name, "status": db_session.status}
 
 @router.get("/", response_model=List[dict])
-def list_sessions(db: DBSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+def list_sessions(
+    db: DBSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     sessions = db.query(schemas.Session).filter(schemas.Session.owner_id == current_user_id).order_by(schemas.Session.created_at.desc()).all()
     result = []
     for s in sessions:
+        if s.status == "processing":
+            if check_and_update_session_completion(db, s.id):
+                db.refresh(s)
         processed_count = db.query(schemas.PatentData).filter(
             schemas.PatentData.session_id == s.id,
             schemas.PatentData.status.in_(["success", "failed"])
@@ -50,163 +53,8 @@ def list_sessions(db: DBSession = Depends(get_db), current_user_id: str = Depend
     return result
 
 @router.get("/{session_id}", response_model=dict)
-def get_session(session_id: str, db: DBSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
-    db_session = db.query(schemas.Session).filter(
-        schemas.Session.id == session_id,
-        schemas.Session.owner_id == current_user_id
-    ).first()
-    if not db_session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    patents = db.query(schemas.PatentData).filter(schemas.PatentData.session_id == session_id).all()
-    
-    # Check global cache for infringement analysis
-    patent_numbers = [p.patent_number for p in patents]
-    cached_patents = set()
-    running_patents = {}
-    if patent_numbers:
-        cache_records = db.query(schemas.InfringementAnalysisCache.patent_number).filter(
-            schemas.InfringementAnalysisCache.patent_number.in_(patent_numbers)
-        ).all()
-        cached_patents = {record[0] for record in cache_records}
-        
-        # Check Redis for any running jobs
-        for p_num in patent_numbers:
-            job_id_bytes = redis_client.get(f"infringement_running:{p_num}")
-            if job_id_bytes:
-                # job_id is stored as plain string in this key
-                running_patents[p_num] = job_id_bytes.decode('utf-8') if isinstance(job_id_bytes, bytes) else job_id_bytes
-    
-    # Calculate processed count dynamically
-    processed_count = sum(1 for p in patents if p.status in ("success", "failed"))
-    
-    # Self-healing: if all patents are done but session is still marked 'processing',
-    # flip it to 'completed' so the frontend stops polling and shows 100%.
-    # This recovers sessions that were stuck before the atomic counter fix was deployed.
-    if (processed_count >= db_session.total_patents
-            and db_session.total_patents > 0
-            and db_session.status == "processing"
-            and db_session.kyp_status in ["completed", "error"]):
-        db_session.status = "completed"
-        db.commit()
-    
-    return {
-        "id": db_session.id,
-        "name": db_session.name,
-        "status": db_session.status,
-        "kyp_status": db_session.kyp_status,
-        "assignee_ranking_status": getattr(db_session, 'assignee_ranking_status', 'pending'),
-        "total_patents": db_session.total_patents,
-        "processed_patents": processed_count,
-        "patents": [
-            {
-                "patent_number": p.patent_number,
-                "title": p.title,
-                "assignees": p.assignees if getattr(p, 'assignees', None) else ([] if not getattr(p, 'assignee', None) else [p.assignee]),
-                "assignee": (p.assignees[0] if getattr(p, 'assignees', None) and len(p.assignees) > 0 else getattr(p, 'assignee', 'Unknown')),
-                "abstract": p.abstract,
-                "status": p.status,
-                "taxonomies": p.taxonomies,
-                "forward_citations": p.forward_citations,
-                "backward_citations": p.backward_citations,
-                "competitors": p.competitors,
-                "forward_competitors": getattr(p, 'forward_competitors', []) or [],
-                "backward_competitors": getattr(p, 'backward_competitors', []) or [],
-                "ranked_forward_assignees": getattr(p, 'ranked_forward_assignees', []) or [],
-                "kyp_score": getattr(p, 'kyp_score', None),
-                "kyp_score_data": getattr(p, 'kyp_score_data', None),
-                "kyp_classifications": getattr(p, 'kyp_classifications', []) or [],
-                "standard": p.standard,
-                "standard_links": p.standard_links,
-                "error_message": p.error_message,
-                "has_cached_infringement": p.patent_number in cached_patents,
-                "running_infringement_job_id": running_patents.get(p.patent_number)
-            } for p in patents
-        ]
-    }
-
-@router.get("/{session_id}/status", response_model=dict)
-def get_session_status(session_id: str, db: DBSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
-    db_session = db.query(schemas.Session).filter(
-        schemas.Session.id == session_id,
-        schemas.Session.owner_id == current_user_id
-    ).first()
-    if not db_session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    # Calculate processed count dynamically (we only need the count, so use query.count() for efficiency)
-    processed_count = db.query(schemas.PatentData).filter(
-        schemas.PatentData.session_id == session_id,
-        schemas.PatentData.status.in_(["success", "failed"])
-    ).count()
-
-    if (processed_count >= db_session.total_patents
-            and db_session.total_patents > 0
-            and db_session.status == "processing"
-            and db_session.kyp_status in ["completed", "error"]):
-        db_session.status = "completed"
-        db.commit()
-
-    return {
-        "status": db_session.status,
-        "kyp_status": db_session.kyp_status,
-        "assignee_ranking_status": getattr(db_session, 'assignee_ranking_status', 'pending'),
-        "total_patents": db_session.total_patents,
-        "processed_patents": processed_count
-    }
-
-@router.get("/{session_id}/export")
-def export_session_excel(
-    session_id: str, 
-    translate: bool = False,
-    sort_by: Optional[str] = "subtopic",
-    db: DBSession = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
-):
-    session_data = get_session(session_id, db, current_user_id)
-    excel_bytes = generate_session_excel(session_data, db=db, translate=translate, sort_by=sort_by)
-    safe_name = "".join(c for c in session_data.get("name", "session") if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
-    filename = f"{safe_name}_{session_id[:8]}.xlsx"
-    return StreamingResponse(
-        io.BytesIO(excel_bytes),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-class CustomExportRequest(BaseModel):
-    patent_ids: List[str]
-    sort_by: str = "subtopic"
-
-@router.post("/{session_id}/export_custom")
-def export_session_excel_custom(
-    session_id: str, 
-    payload: CustomExportRequest,
-    translate: bool = False,
-    db: DBSession = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
-):
-    session_data = get_session(session_id, db, current_user_id)
-    excel_bytes = generate_session_excel(
-        session_data, 
-        db=db, 
-        translate=translate, 
-        patent_ids=payload.patent_ids, 
-        sort_by=payload.sort_by
-    )
-    safe_name = "".join(c for c in session_data.get("name", "session") if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
-    filename = f"{safe_name}_{session_id[:8]}_custom.xlsx"
-    return StreamingResponse(
-        io.BytesIO(excel_bytes),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-@router.post("/{session_id}/upload")
-async def upload_excel(
+def get_session(
     session_id: str,
-    background_tasks: BackgroundTasks,
-    request: Request,
-    file: UploadFile = File(...),
     db: DBSession = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
@@ -217,108 +65,135 @@ async def upload_excel(
     if not db_session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Only Excel files are supported")
+    if db_session.status == "processing":
+        if check_and_update_session_completion(db, session_id):
+            db.refresh(db_session)
 
-    contents = await file.read()
-    
-    logger.info(f"[User {current_user_id}] [Session {session_id}] Starting Excel file processing: {file.filename} (Size: {len(contents)} bytes)")
-    parse_start_time = time.perf_counter()
-    
-    try:
-        df = pd.read_excel(io.BytesIO(contents))
-        
-        # Smart column detection
-        patent_col = None
-        for col in df.columns:
-            col_name = str(col).lower()
-            if 'patent' in col_name or 'publication' in col_name:
-                patent_col = col
-                break
-        
-        # Fallback to existing behavior (first column) if no matching header is found
-        if patent_col is None:
-            patent_col = df.columns[0]
+    import json
+
+    patents = []
+    processed_count = 0
+    for p in db_session.patents:
+        if p.status in ["success", "failed"]:
+            processed_count += 1
             
-        raw_numbers = df[patent_col].dropna().astype(str).tolist()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error reading Excel file: {str(e)}")
+        patent_dict = {
+            "id": p.id,
+            "patent_number": p.patent_number,
+            "title": p.title,
+            "assignees": p.assignees,
+            "assignee": p.assignees[0] if p.assignees else None,
+            "abstract": p.abstract,
+            "claims": p.claims,
+            "forward_citations": p.forward_citations,
+            "backward_citations": p.backward_citations,
+            "taxonomies": p.taxonomies,
+            "standard": p.standard,
+            "standard_links": p.standard_links,
+            "competitors": p.competitors,
+            "forward_competitors": p.forward_competitors,
+            "backward_competitors": p.backward_competitors,
+            "ranked_forward_assignees": getattr(p, "ranked_forward_assignees", None),
+            "kyp_score": p.kyp_score,
+            "kyp_score_data": p.kyp_score_data,
+            "kyp_classifications": p.kyp_classifications,
+            "status": p.status,
+            "error_message": p.error_message
+        }
 
-    # Sanitize: strip whitespace, remove blanks, deduplicate while preserving order
-    seen = set()
-    patent_numbers = []
-    for num in raw_numbers:
-        cleaned = num.strip()
-        if cleaned and cleaned.lower() not in ('nan', 'none', '') and cleaned not in seen:
-            seen.add(cleaned)
-            patent_numbers.append(cleaned)
+        # Check if an infringement analysis is already cached in the DB for this patent
+        cached_infringement = db.query(schemas.InfringementAnalysisCache).filter(
+            schemas.InfringementAnalysisCache.patent_number == p.patent_number
+        ).first()
+        patent_dict["has_cached_infringement"] = cached_infringement is not None
 
-    if not patent_numbers:
-        raise HTTPException(status_code=400, detail="No valid patent numbers found in the file")
+        # Check if an active infringement job is currently running in Redis
+        try:
+            running_job_id = (
+                redis_client.get(f"infringement_running:{p.patent_number}") or
+                redis_client.get(f"active_infringement_job:{p.patent_number}")
+            )
+            if running_job_id:
+                if isinstance(running_job_id, bytes):
+                    running_job_id = running_job_id.decode("utf-8")
+                job_status_raw = redis_client.get(f"infringement_job:{running_job_id}")
+                if job_status_raw:
+                    try:
+                        if isinstance(job_status_raw, bytes):
+                            job_status_raw = job_status_raw.decode("utf-8")
+                        job_data = json.loads(job_status_raw)
+                        if job_data.get("status") == "running":
+                            patent_dict["running_infringement_job_id"] = running_job_id
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
-    db_session.total_patents = len(patent_numbers)
-    db_session.status = "processing"
-
-    # Pre-populate pending patent records
-    for num in patent_numbers:
-        patent_record = schemas.PatentData(
-            session_id=session_id,
-            patent_number=num,
-            status="pending"
-        )
-        db.add(patent_record)
-
-    db.commit()
-
-    # Enqueue patents into session-specific Redis list for Round-Robin execution
-    queue_key = f"session_patents:{session_id}"
-    redis_client.rpush(queue_key, *patent_numbers)
-    redis_client.sadd("active_sessions_set", session_id)
-
-    # Trigger the round-robin dispatcher to schedule tasks across all active sessions
-    from ..tasks import dispatch_round_robin_tasks
-    dispatch_round_robin_tasks.delay()
-    
-    # Extract JWT auth token and KYP internal user ID from the incoming request to pass to KYP APIs
-    auth_token = request.headers.get("Authorization")
-    if auth_token:
-        redis_client.set(f"session_auth_token:{session_id}", auth_token, ex=86400)
-    
-    # DIAGNOSTIC LOGGING
-    logger.info(f"[{session_id}] RECEIVED HEADERS: {dict(request.headers)}")
-    
-    kyp_user_id = request.headers.get("x-kyp-user-id", "1")
-    
-    # Trigger the parallel KYP background job
-    from ..background_jobs import process_session_kyp_batch_bg
-    background_tasks.add_task(process_session_kyp_batch_bg, session_id, patent_numbers, auth_token, kyp_user_id)
-
-    parse_duration = time.perf_counter() - parse_start_time
-    logger.info(f"[{session_id}] Successfully parsed {len(patent_numbers)} unique patents from Excel in {parse_duration:.2f}s")
+        patents.append(patent_dict)
 
     return {
-        "message": f"Upload successful. {len(patent_numbers)} patents queued for background processing.",
-        "total_patents": len(patent_numbers)
+        "id": db_session.id,
+        "name": db_session.name,
+        "status": db_session.status,
+        "kyp_status": db_session.kyp_status,
+        "assignee_ranking_status": getattr(db_session, 'assignee_ranking_status', 'pending'),
+        "total_patents": db_session.total_patents,
+        "processed_patents": processed_count,
+        "patents": patents
+    }
+
+@router.get("/{session_id}/status", response_model=dict)
+def get_session_status(
+    session_id: str,
+    db: DBSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    db_session = db.query(schemas.Session).filter(
+        schemas.Session.id == session_id,
+        schemas.Session.owner_id == current_user_id
+    ).first()
+    if not db_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if db_session.status == "processing":
+        if check_and_update_session_completion(db, session_id):
+            db.refresh(db_session)
+
+    processed_count = db.query(schemas.PatentData).filter(
+        schemas.PatentData.session_id == session_id,
+        schemas.PatentData.status.in_(["success", "failed"])
+    ).count()
+
+    return {
+        "status": db_session.status,
+        "kyp_status": db_session.kyp_status,
+        "assignee_ranking_status": getattr(db_session, 'assignee_ranking_status', 'pending'),
+        "total_patents": db_session.total_patents,
+        "processed_patents": processed_count
     }
 
 def _delete_session_background(session_id: str):
     """Background task to delete session and halt queue processing."""
     try:
-        # Instantly remove from Redis queue so Dispatcher stops feeding Celery
         redis_client.srem("active_sessions_set", session_id)
         redis_client.delete(f"session_patents:{session_id}")
         
         db = next(get_db())
         session = db.query(schemas.Session).filter(schemas.Session.id == session_id).first()
         if session:
-            # Cascade delete will remove all patent_data rows automatically
             db.delete(session)
             db.commit()
+            logger.info(f"Session {session_id} deleted successfully.")
     except Exception as e:
-        print(f"Error in background session deletion: {e}")
+        logger.error(f"Error deleting session {session_id} in background: {e}")
 
 @router.delete("/{session_id}", status_code=202)
-def delete_session(session_id: str, background_tasks: BackgroundTasks, db: DBSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+def delete_session(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+    db: DBSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Instantly halts processing and deletes session in background."""
     db_session = db.query(schemas.Session).filter(
         schemas.Session.id == session_id,
@@ -329,130 +204,3 @@ def delete_session(session_id: str, background_tasks: BackgroundTasks, db: DBSes
         
     background_tasks.add_task(_delete_session_background, session_id)
     return {"message": "Session deletion accepted and processing in background."}
-
-class InfringementStartRequest(BaseModel):
-    patent_number: str
-    custom_instruction: Optional[str] = None
-
-@router.post("/infringement/start")
-def start_infringement_analysis(
-    payload: InfringementStartRequest,
-    background_tasks: BackgroundTasks,
-    request: Request,
-    db: DBSession = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
-):
-    job_id = str(uuid.uuid4())
-    
-    # Cache Check
-    cache_entry = db.query(schemas.InfringementAnalysisCache).filter(
-        schemas.InfringementAnalysisCache.patent_number == payload.patent_number
-    ).first()
-    
-    if cache_entry:
-        return {
-            "job_id": job_id,
-            "status": "completed",
-            "result": cache_entry.result_data
-        }
-        
-    from ..services.infringement_service import run_infringement_job
-    auth_token = request.headers.get("Authorization")
-    background_tasks.add_task(run_infringement_job, job_id, payload.patent_number, auth_token, payload.custom_instruction)
-    return {"job_id": job_id}
-
-@router.get("/infringement/{job_id}/status")
-def check_infringement_status(job_id: str, current_user_id: str = Depends(get_current_user_id)):
-    from ..services.infringement_service import get_infringement_job_status
-    status_data = get_infringement_job_status(job_id)
-    if not status_data:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return status_data
-
-class ClaimChartStartRequest(BaseModel):
-    patent_number: str
-    assignees: List[str]
-    products: List[dict]
-    custom_instructions: Optional[str] = ""
-
-@router.post("/claim-chart/start")
-def start_claim_chart_generation(
-    payload: ClaimChartStartRequest,
-    background_tasks: BackgroundTasks,
-    request: Request,
-    current_user_id: str = Depends(get_current_user_id),
-    db: DBSession = Depends(get_db)
-):
-    import json
-    job_id = str(uuid.uuid4())
-    auth_token = request.headers.get("Authorization")
-    user_id = request.headers.get("x-kyp-user-id", "1")
-    
-    # Check cache for existing claim charts
-    cached_products = []
-    uncached_products = []
-    
-    for prod in payload.products:
-        company = prod.get("company", "")
-        model = prod.get("model", "")
-        
-        cache_entry = db.query(schemas.ClaimChartCache).filter(
-            schemas.ClaimChartCache.patent_number == payload.patent_number,
-            schemas.ClaimChartCache.company == company,
-            schemas.ClaimChartCache.model == model
-        ).first()
-        
-        if cache_entry:
-            cached_products.append(cache_entry.result_data)
-        else:
-            uncached_products.append(prod)
-
-    # If all products are cached, return immediately
-    if not uncached_products:
-        mock_job_id = f"cached_{job_id}"
-        cached_result = {
-            "analysis_date": datetime.utcnow().strftime("%Y-%m-%d"),
-            "patent_number": payload.patent_number,
-            "products_analysis": cached_products,
-            "claim_construction": []
-        }
-        redis_client.set(f"claim_chart_job:{mock_job_id}", json.dumps({
-            "status": "completed",
-            "result": cached_result
-        }), ex=86400)
-        return {"job_id": mock_job_id}
-
-    from ..services.claim_chart.claim_chart_service import generate_claim_chart_background
-    background_tasks.add_task(
-        generate_claim_chart_background,
-        job_id,
-        payload.patent_number,
-        payload.assignees,
-        uncached_products,
-        cached_products,
-        payload.custom_instructions,
-        auth_token,
-        user_id
-    )
-    return {"job_id": job_id}
-
-@router.get("/claim-chart/{job_id}/status")
-def check_claim_chart_status(job_id: str, current_user_id: str = Depends(get_current_user_id)):
-    import json
-    data = redis_client.get(f"claim_chart_job:{job_id}")
-    if not data:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return json.loads(data)
-
-@router.get("/claim-chart/cache/{patent_number}")
-def get_claim_chart_cache(
-    patent_number: str,
-    db: DBSession = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
-):
-    """Fetch all cached claim charts for a given patent number."""
-    cache_entries = db.query(schemas.ClaimChartCache).filter(
-        schemas.ClaimChartCache.patent_number == patent_number
-    ).all()
-    
-    return [entry.result_data for entry in cache_entries]

@@ -9,9 +9,11 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
     PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY")
+    PERPLEXITY_API_URL: str = os.getenv("PERPLEXITY_API_URL", "https://api.perplexity.ai/chat/completions")
     
     WISSEN_API_BASE_URL: str = os.getenv("WISSEN_API_BASE_URL")
     WISSEN_AI_API_BASE_URL: str = os.getenv("WISSEN_AI_API_BASE_URL")
+    WISSEN_API_KEY: str = os.getenv("WISSEN_API_KEY", "")
     SPARTA_API_BASE_URL: str = os.getenv("SPARTA_API_BASE_URL")
     COMPETITOR_API_URL: str = os.getenv("COMPETITOR_API_URL")
     AGENT_API_BASE_URL: str = os.getenv("AGENT_API_BASE_URL")
@@ -20,9 +22,18 @@ class Settings:
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     CELERY_CONCURRENCY: int = int(os.getenv("CELERY_CONCURRENCY", "4"))
 
+    ALLOWED_ORIGINS: list = [
+        origin.strip()
+        for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ] or [
+        "http://localhost:8511",
+        "http://localhost:3000",
+    ]
+
     LANGFUSE_SECRET_KEY: str = os.getenv("LANGFUSE_SECRET_KEY", "")
     LANGFUSE_PUBLIC_KEY: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
-    LANGFUSE_HOST: str = os.getenv("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
+    LANGFUSE_HOST: str = os.getenv("LANGFUSE_HOST", "")
 
     # Global patent caching controls
     ENABLE_PATENT_CACHE: bool = os.getenv("ENABLE_PATENT_CACHE", "true").lower() == "true"

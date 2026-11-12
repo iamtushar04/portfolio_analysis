@@ -1,7 +1,10 @@
 import httpx
 import asyncio
 # pyrefly: ignore [missing-import]
-from jose import jwt
+try:
+    from jose import jwt
+except ImportError:
+    jwt = None
 from typing import List, Dict, Any
 from ..logging_config import logger
 from ..config import settings

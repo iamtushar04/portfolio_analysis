@@ -72,7 +72,7 @@ async def _fetch_perplexity_evaluation(term: str, assignees: list[str], semaphor
             for attempt in range(1, 4):
                 try:
                     response = await client.post(
-                        "https://api.perplexity.ai/chat/completions",
+                        settings.PERPLEXITY_API_URL,
                         headers=headers,
                         json=payload,
                         timeout=60.0

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
-import { Users, ExternalLink, Ghost, ArrowDownWideNarrow, ShieldAlert, Loader2 } from "lucide-react";
+import { Users, ExternalLink, Ghost, ArrowDownWideNarrow, ShieldAlert, Loader2, RotateCcw } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
 import PatentDrawer from "@/components/PatentDrawer";
 
@@ -84,6 +84,7 @@ function PatentRow({
   infringementJob,
   onViewInfringement,
   onStartInfringement,
+  onRetryPatent,
 }: {
   p: any;
   isSelected: boolean;
@@ -93,6 +94,7 @@ function PatentRow({
   infringementJob?: { status: string; result?: any };
   onViewInfringement?: (patent_number: string, result: any) => void;
   onStartInfringement?: (patent_number: string) => void;
+  onRetryPatent?: (patent_number: string) => void;
 }) {
   const isPending = p.status === "pending";
   const isFailed = p.status === "failed";
@@ -159,17 +161,33 @@ function PatentRow({
               <span>Processing patent...</span>
             </div>
           ) : isFailed ? (
-            <div>
-              <div className="text-rose-400 font-semibold">
-                Processing Failed
-              </div>
-              {p.error_message && (
-                <div
-                  className="text-xs text-rose-300/80 mt-0.5 line-clamp-1"
-                  title={p.error_message}
-                >
-                  {p.error_message}
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-rose-500 font-semibold flex items-center gap-1.5 text-xs">
+                  <span>Processing Failed</span>
                 </div>
+                {p.error_message && (
+                  <div
+                    className="text-xs text-rose-400 mt-0.5 line-clamp-1"
+                    title={p.error_message}
+                  >
+                    {p.error_message}
+                  </div>
+                )}
+              </div>
+              {onRetryPatent && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRetryPatent(p.patent_number);
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold transition cursor-pointer shrink-0 shadow-sm"
+                  title="Retry this patent"
+                >
+                  <RotateCcw size={12} />
+                  <span>Retry</span>
+                </button>
               )}
             </div>
           ) : (
@@ -459,6 +477,7 @@ const PatentDetails = ({
   infringementJobs,
   onViewInfringement,
   onStartInfringement,
+  onRetryPatent,
 }: {
   patents: any[];
   isRankingAssignees?: boolean;
@@ -468,6 +487,7 @@ const PatentDetails = ({
   infringementJobs?: Map<string, { job_id: string; status: string; result?: any }>;
   onViewInfringement?: (patent_number: string, result: any) => void;
   onStartInfringement?: (patent_number: string) => void;
+  onRetryPatent?: (patent_number: string) => void;
 }) => {
   const [selectedPatent, setSelectedPatent] = useState<any | null>(null);
 
@@ -519,24 +539,24 @@ const PatentDetails = ({
   }, [selectedPatent, patents]);
 
   if (!patents || patents.length === 0) {
-  return (
-    <div className="
+    return (
+      <div className="
       w-full
       bg-slate-100 rounded-lg
       flex flex-col items-center justify-center
       text-center px-4 py-16
       min-h-[300px]
     ">
-      <Ghost size={48} className="text-slate-900 mb-4 opacity-90" />
-      <h3 className="text-lg font-bold text-slate-900 opacity-90">
-        No patents match your search
-      </h3>
-      <p className="text-sm text-slate-500 mt-2 opacity-80">
-        Try adjusting your search terms.
-      </p>
-    </div>
-  );
-}
+        <Ghost size={48} className="text-slate-900 mb-4 opacity-90" />
+        <h3 className="text-lg font-bold text-slate-900 opacity-90">
+          No patents match your search
+        </h3>
+        <p className="text-sm text-slate-500 mt-2 opacity-80">
+          Try adjusting your search terms.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -712,6 +732,10 @@ const PatentDetails = ({
 
                     onStartInfringement={
                       onStartInfringement
+                    }
+
+                    onRetryPatent={
+                      onRetryPatent
                     }
 
                   />

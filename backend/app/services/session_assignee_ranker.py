@@ -343,13 +343,14 @@ def _build_session_assignee_maps(db: DBSession, session_id: str, accumulator: di
         ).first()
 
         if existing:
-            existing.perplexity_scores    = perplexity_scores
-            existing.cited_by_patents     = cited_by
-            existing.topics_collected     = topics
-            existing.subtopics_collected  = subtopics
-            existing.topic_avg            = topic_avg
-            existing.subtopic_avg         = subtopic_avg
-            existing.passes_threshold     = passes
+            # Merge incrementally: combine cited_by, topics, subtopics and scores across batches
+            existing.perplexity_scores    = {**(existing.perplexity_scores or {}), **perplexity_scores}
+            existing.cited_by_patents     = list(dict.fromkeys((existing.cited_by_patents or []) + cited_by))
+            existing.topics_collected     = list(dict.fromkeys((existing.topics_collected or []) + topics))
+            existing.subtopics_collected  = list(dict.fromkeys((existing.subtopics_collected or []) + subtopics))
+            existing.topic_avg            = topic_avg if topic_avg is not None else existing.topic_avg
+            existing.subtopic_avg         = subtopic_avg if subtopic_avg is not None else existing.subtopic_avg
+            existing.passes_threshold     = existing.passes_threshold or passes
         else:
             db.add(schemas.SessionAssigneeMap(
                 session_id           = session_id,
@@ -407,6 +408,11 @@ def _writeback_per_patent(
             name for name, entry in accumulator.items()
             if patent.patent_number in entry.get("cited_by", [])
         ]
+
+        # Guard: If this patent was from a previous batch and has already been ranked,
+        # do not wipe out its rankings with an empty list!
+        if not patent_assignees and patent.ranked_forward_assignees:
+            continue
 
         # Get this patent's own taxonomy terms
         patent_topics: set[str] = set()

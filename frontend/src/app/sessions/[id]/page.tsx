@@ -9,6 +9,9 @@ import {
   Search,
   FileSpreadsheet,
   ShieldAlert,
+  RotateCcw,
+  FileText,
+  X,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -26,6 +29,10 @@ export default function SessionDetail() {
   const sessionId = params?.id as string;
 
   const [uploading, setUploading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [showAddPatentsModal, setShowAddPatentsModal] = useState(false);
+  const [addPatentsTab, setAddPatentsTab] = useState<"paste" | "upload">("paste");
+  const [pastedPatentText, setPastedPatentText] = useState("");
   const [globalSearch, setGlobalSearch] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
   const [translateExport, setTranslateExport] = useState(true);
@@ -179,6 +186,7 @@ export default function SessionDetail() {
       toast.success("Upload successful! Processing started.", {
         id: loadingToast,
       });
+      setShowAddPatentsModal(false);
       refetch();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Upload failed", {
@@ -187,6 +195,96 @@ export default function SessionDetail() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const parsePastedPatents = (text: string): string[] => {
+    const tokens = text.split(/[\r\n,;\s]+/);
+    const seen = new Set<string>();
+    const cleaned: string[] = [];
+    for (const raw of tokens) {
+      const item = raw.trim().toUpperCase();
+      if (item && item !== "NAN" && item !== "NONE" && !seen.has(item)) {
+        seen.add(item);
+        cleaned.push(item);
+      }
+    }
+    return cleaned;
+  };
+
+  const handlePasteSubmit = async () => {
+    const list = parsePastedPatents(pastedPatentText);
+    if (list.length === 0) {
+      toast.error("Please enter at least one valid patent number.");
+      return;
+    }
+
+    setUploading(true);
+    const loadingToast = toast.loading(`Submitting ${list.length} patent(s)...`);
+
+    try {
+      const token = localStorage.getItem("token");
+      const kypUserId = localStorage.getItem("user_id");
+      await axios.post(
+        `${API_BASE}/api/sessions/${sessionId}/patents`,
+        { patent_numbers: list },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "x-kyp-user-id": kypUserId || "1",
+          },
+        },
+      );
+      toast.success(`Queued ${list.length} patent(s) for processing!`, {
+        id: loadingToast,
+      });
+      setPastedPatentText("");
+      setShowAddPatentsModal(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Failed to submit patents", {
+        id: loadingToast,
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRetryFailed = async (targetPatents?: string[]) => {
+    setRetrying(true);
+    const isBulk = !targetPatents || targetPatents.length === 0;
+    const toastMsg = isBulk ? "Retrying all failed patents..." : `Retrying ${targetPatents.length} patent(s)...`;
+    const loadingToast = toast.loading(toastMsg);
+
+    try {
+      const token = localStorage.getItem("token");
+      const kypUserId = localStorage.getItem("user_id");
+      const payload = isBulk
+        ? { retry_all_failed: true }
+        : { patent_numbers: targetPatents };
+
+      const res = await axios.post(
+        `${API_BASE}/api/sessions/${sessionId}/retry`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "x-kyp-user-id": kypUserId || "1",
+          },
+        },
+      );
+      toast.success(res.data?.message || "Retry initiated successfully!", {
+        id: loadingToast,
+      });
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Retry failed", {
+        id: loadingToast,
+      });
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -504,6 +602,11 @@ export default function SessionDetail() {
 
   const patentsList: any[] = data.patents || [];
   const hasPatents = patentsList.length > 0;
+  const failedPatents = patentsList.filter((p: any) => p.status === "failed");
+  const failedCount = failedPatents.length;
+  const selectedFailedPatents = patentsList.filter(
+    (p: any) => p.status === "failed" && selectedForExport.has(p.patent_number)
+  );
 
   return (
     <main className="w-full bg-white px-4 md:px-8 pb-4">
@@ -646,31 +749,66 @@ export default function SessionDetail() {
           </div>
         )}
 
-        {/* Upload */}
-        {data.status === "pending" && (
-          <>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".xlsx,.xls"
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="
-                flex items-center justify-center gap-2 flex-1 sm:flex-none
-                bg-emerald-600 hover:bg-emerald-700
-                text-white px-4 py-2 rounded-xl
-                text-sm font-medium cursor-pointer transition
-                disabled:opacity-50 whitespace-nowrap shrink-0
-              "
-            >
-              <UploadCloud size={17} className="shrink-0" />
-              <span>{uploading ? "Uploading..." : "Upload"}</span>
-            </button>
-          </>
+        {/* Upload / Ingest Patents — Always available so users can append patents anytime */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".xlsx,.xls"
+          className="hidden"
+        />
+        <button
+          onClick={() => setShowAddPatentsModal(true)}
+          disabled={uploading}
+          className="
+            flex items-center justify-center gap-2 flex-1 sm:flex-none
+            bg-emerald-600 hover:bg-emerald-700
+            text-white px-3.5 py-2 rounded-xl
+            text-sm font-medium cursor-pointer transition
+            disabled:opacity-50 whitespace-nowrap shrink-0 shadow-sm
+          "
+          title="Add new patents via paste or file upload"
+        >
+          <UploadCloud size={17} className="shrink-0" />
+          <span>{uploading ? "Adding..." : "Add Patents"}</span>
+        </button>
+
+        {/* Bulk Retry Failed Patents Button */}
+        {failedCount > 0 && (
+          <button
+            onClick={() => handleRetryFailed()}
+            disabled={retrying}
+            className="
+              flex items-center gap-1.5
+              bg-amber-500 hover:bg-amber-600 active:bg-amber-700
+              text-white px-3 py-2 rounded-xl
+              text-sm font-semibold transition
+              shadow-sm disabled:opacity-50 cursor-pointer shrink-0
+            "
+            title="Retry all patents that encountered an error"
+          >
+            <RotateCcw size={15} className={retrying ? "animate-spin" : ""} />
+            <span>Retry Failed ({failedCount})</span>
+          </button>
+        )}
+
+        {/* Selective Retry for Checked Failed Patents */}
+        {selectedFailedPatents.length > 0 && selectedFailedPatents.length !== failedCount && (
+          <button
+            onClick={() => handleRetryFailed(selectedFailedPatents.map((p: any) => p.patent_number))}
+            disabled={retrying}
+            className="
+              flex items-center gap-1.5
+              bg-amber-600 hover:bg-amber-700
+              text-white px-3 py-2 rounded-xl
+              text-sm font-semibold transition
+              shadow-sm disabled:opacity-50 cursor-pointer shrink-0
+            "
+            title="Retry selected failed patents"
+          >
+            <RotateCcw size={15} className={retrying ? "animate-spin" : ""} />
+            <span>Retry Selected ({selectedFailedPatents.length})</span>
+          </button>
         )}
 
         {data.patents.length > 0 && (
@@ -839,21 +977,18 @@ export default function SessionDetail() {
         </h3>
 
         <p className="text-slate-500 max-w-md mx-auto mb-6">
-          Upload an Excel (.xlsx) file containing patent numbers in the
-          first column to begin the automated analysis pipeline.
+          Upload an Excel (.xlsx) file or paste patent numbers directly to begin the automated analysis pipeline.
         </p>
 
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => setShowAddPatentsModal(true)}
           className="
-            text-slate-500
-            hover:text-slate-600
-            font-medium
-            hover:underline
+            px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700
+            text-white font-medium shadow-md transition
             cursor-pointer
           "
         >
-          Click to Browse Files
+          Add Patents (Excel or Paste)
         </button>
       </div>
     </div>
@@ -905,6 +1040,7 @@ export default function SessionDetail() {
                     infringementJobs={infringementJobs}
                     onViewInfringement={(patent_number, result) => setOpenInfringementDrawer({ patent_number, result })}
                     onStartInfringement={openInfringementModal}
+                    onRetryPatent={(patent_number) => handleRetryFailed([patent_number])}
                   />
                 );
               })()}
@@ -1000,6 +1136,127 @@ export default function SessionDetail() {
                   Download Excel
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dual Mode Ingestion Modal: Paste Numbers OR Upload Excel */}
+        {showAddPatentsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative animate-in fade-in zoom-in duration-150">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <UploadCloud size={20} className="text-emerald-600" />
+                  <span>Add Patents to Session</span>
+                </h3>
+                <button
+                  onClick={() => setShowAddPatentsModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-slate-200 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setAddPatentsTab("paste")}
+                  className={`flex-1 py-2.5 text-sm font-semibold border-b-2 transition-colors cursor-pointer flex items-center justify-center gap-2 ${
+                    addPatentsTab === "paste"
+                      ? "border-emerald-600 text-emerald-700 bg-emerald-50/50"
+                      : "border-transparent text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <FileText size={16} />
+                  <span>Paste Numbers</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddPatentsTab("upload")}
+                  className={`flex-1 py-2.5 text-sm font-semibold border-b-2 transition-colors cursor-pointer flex items-center justify-center gap-2 ${
+                    addPatentsTab === "upload"
+                      ? "border-emerald-600 text-emerald-700 bg-emerald-50/50"
+                      : "border-transparent text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <FileSpreadsheet size={16} />
+                  <span>Upload Excel</span>
+                </button>
+              </div>
+
+              {/* Tab 1: Paste Text */}
+              {addPatentsTab === "paste" && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs text-slate-500">
+                    Paste patent numbers separated by lines, commas, or spaces (e.g. <span className="font-mono text-slate-700">US8203600B2, US10932232B2</span>):
+                  </p>
+                  <textarea
+                    rows={7}
+                    value={pastedPatentText}
+                    onChange={(e) => setPastedPatentText(e.target.value)}
+                    placeholder="US8203600B2&#10;US10932232B2&#10;WO2020123456A1"
+                    className="w-full p-3 font-mono text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition resize-none custom-scrollbar text-slate-800"
+                  />
+                  {pastedPatentText.trim() && (
+                    <div className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center justify-between">
+                      <span>
+                        Valid patents detected: <strong>{parsePastedPatents(pastedPatentText).length}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPastedPatentText("")}
+                        className="text-slate-400 hover:text-slate-600 text-xs underline"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPatentsModal(false)}
+                      className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={uploading || parsePastedPatents(pastedPatentText).length === 0}
+                      onClick={handlePasteSubmit}
+                      className="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-sm transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <UploadCloud size={16} />
+                      <span>Submit Patents</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Upload Excel File */}
+              {addPatentsTab === "upload" && (
+                <div className="mt-4 space-y-4">
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-8 text-center cursor-pointer bg-slate-50 hover:bg-emerald-50/20 transition group"
+                  >
+                    <FileSpreadsheet size={36} className="mx-auto text-slate-400 group-hover:text-emerald-600 transition mb-2" />
+                    <p className="text-sm font-semibold text-slate-700">Click to choose .xlsx or .xls file</p>
+                    <p className="text-xs text-slate-400 mt-1">First column should contain the patent numbers</p>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPatentsModal(false)}
+                      className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

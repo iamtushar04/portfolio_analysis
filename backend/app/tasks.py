@@ -17,6 +17,7 @@ from .services.sparta import fetch_sparta_data
 from .services.assignee_filters import apply_all_filters
 from .services.session_assignee_ranker import redis_accumulate_assignee, run_session_assignee_ranking
 from .services.kyp import fetch_classifications_batch, filter_patents_batch, trigger_scoring_batch, poll_scoring_task
+from .services.session_lifecycle import check_and_update_session_completion
 from .redis_client import redis_client
 from .config import settings
 from .logging_config import logger, correlation_id_ctx
@@ -292,9 +293,8 @@ def _check_session_completion(db, session_id: str):
             and db_session.total_patents > 0
         )
 
-        if all_patents_done and db_session.kyp_status in ["completed", "error"]:
-            db_session.status = "completed"
-            db.commit()
+        # Delegate to canonical completion state machine
+        check_and_update_session_completion(db, session_id)
 
         # Trigger Phase 2 as soon as all patents are done (independent of KYP)
         # Only trigger once: guard against duplicate triggers using ranking status
@@ -321,6 +321,7 @@ def run_session_assignee_ranking_task(session_id: str):
     db = SessionLocal()
     try:
         asyncio.run(run_session_assignee_ranking(session_id, db))
+        check_and_update_session_completion(db, session_id)
     except Exception as e:
         logger.error(f"[Phase2 Task] Failed for session {session_id}: {e}")
         # Mark ranking as error so it doesn't stay stuck in 'pending'
@@ -332,6 +333,7 @@ def run_session_assignee_ranking_task(session_id: str):
                 synchronize_session=False,
             )
             db.commit()
+            check_and_update_session_completion(db, session_id)
         except Exception:
             pass
     finally:

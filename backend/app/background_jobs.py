@@ -2,6 +2,7 @@ import asyncio
 from .database import SessionLocal
 from .models import schemas
 from .services.kyp import fetch_classifications_batch, filter_patents_batch, trigger_scoring_batch, poll_scoring_task
+from .services.session_lifecycle import check_and_update_session_completion
 from .logging_config import logger
 
 async def process_session_kyp_batch_bg(session_id: str, patent_numbers: list[str], auth_token: str = None, kyp_user_id: str = "1"):
@@ -40,6 +41,7 @@ async def process_session_kyp_batch_bg(session_id: str, patent_numbers: list[str
             logger.warning(f"[KYP BG] Filter returned no patents for session {session_id}")
             db_session.kyp_status = "completed"
             db.commit()
+            check_and_update_session_completion(db, session_id)
             return
 
         # Step 3: Trigger Scoring
@@ -48,6 +50,7 @@ async def process_session_kyp_batch_bg(session_id: str, patent_numbers: list[str
             logger.error(f"[KYP BG] Failed to get task_id for session {session_id}")
             db_session.kyp_status = "error"
             db.commit()
+            check_and_update_session_completion(db, session_id)
             return
 
         logger.info(f"[KYP BG] Session {session_id} triggered scoring task {task_id}. Polling...")
@@ -94,6 +97,7 @@ async def process_session_kyp_batch_bg(session_id: str, patent_numbers: list[str
         
         db.commit()
         logger.info(f"[KYP BG] Session {session_id} KYP batch successfully completed and saved using robust updates.")
+        check_and_update_session_completion(db, session_id)
 
     except Exception as e:
         logger.error(f"[KYP BG] Unhandled exception in background task for session {session_id}: {e}")
@@ -104,6 +108,7 @@ async def process_session_kyp_batch_bg(session_id: str, patent_numbers: list[str
             if db_session:
                 db_session.kyp_status = "error"
                 db.commit()
+                check_and_update_session_completion(db, session_id)
         except Exception:
             pass
     finally:
